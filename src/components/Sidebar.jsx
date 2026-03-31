@@ -1,6 +1,6 @@
 import React from 'react';
+import ExotelLogo from './ExotelLogo';
 import {
-  PhoneOutgoing,
   List,
   Play,
   MessageSquare,
@@ -17,7 +17,7 @@ const nodeCategories = [
   {
     title: 'Call Flow',
     items: [
-      { type: 'menuNode', label: 'IVR Menu', icon: List, color: '#3b82f6', desc: 'DTMF-based menu routing' },
+      { type: 'menuNode', label: 'IVR Menu', icon: List, color: '#394FB6', desc: 'DTMF-based menu routing' },
       { type: 'gatherNode', label: 'Gather Digits', icon: Hash, color: '#eab308', desc: 'Collect DTMF input' },
       { type: 'transferNode', label: 'Transfer', icon: PhoneForwarded, color: '#f97316', desc: 'Dial & transfer call' },
       { type: 'hangupNode', label: 'Hang Up', icon: PhoneOff, color: '#6b7280', desc: 'End the call' },
@@ -55,8 +55,7 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <PhoneOutgoing size={20} />
-          <span>IVR Builder</span>
+          <ExotelLogo height={18} light={true} />
         </div>
         <p className="sidebar-hint">Drag nodes onto the canvas</p>
       </div>

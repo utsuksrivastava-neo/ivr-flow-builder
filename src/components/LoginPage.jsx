@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import useAuthStore from '../store/authStore';
-import { PhoneOutgoing, LogIn, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Eye, EyeOff } from 'lucide-react';
+import ExotelLogo, { ExotelXMark } from './ExotelLogo';
 
 export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
@@ -26,9 +27,10 @@ export default function LoginPage() {
       <div className={`login-card ${shake ? 'shake' : ''}`}>
         <div className="login-logo">
           <div className="login-logo-icon">
-            <PhoneOutgoing size={28} />
+            <ExotelXMark size={28} />
           </div>
-          <h1>IVR Flow Builder</h1>
+          <ExotelLogo height={26} light={true} className="login-exotel-wordmark" />
+          <h2 className="login-product-name">IVR Flow Builder</h2>
           <p>Build interactive voice response flows visually</p>
         </div>
 
@@ -76,7 +78,8 @@ export default function LoginPage() {
       </div>
 
       <div className="login-footer">
-        Powered by Exotel CPaaS APIs
+        <ExotelLogo height={14} light={true} className="login-footer-logo" />
+        <span>Powered by Exotel CPaaS APIs</span>
       </div>
     </div>
   );

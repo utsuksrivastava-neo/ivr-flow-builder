@@ -45,7 +45,7 @@ const useFlowStore = create((set, get) => ({
       id: `e-${nanoid(8)}`,
       type: 'smoothstep',
       animated: true,
-      style: { stroke: '#6366f1', strokeWidth: 2 },
+      style: { stroke: '#394FB6', strokeWidth: 2 },
     };
     set({ edges: addEdge(edge, get().edges) });
   },

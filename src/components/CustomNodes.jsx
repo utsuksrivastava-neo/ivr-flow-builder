@@ -16,13 +16,13 @@ import {
 } from 'lucide-react';
 
 const nodeColors = {
-  startNode: { bg: '#065f46', border: '#10b981', accent: '#34d399' },
-  menuNode: { bg: '#1e3a5f', border: '#3b82f6', accent: '#60a5fa' },
+  startNode: { bg: '#0d3a1a', border: '#4DB961', accent: '#5EC972' },
+  menuNode: { bg: '#1c2a5e', border: '#394FB6', accent: '#6175C5' },
   playNode: { bg: '#4a1d6a', border: '#a855f7', accent: '#c084fc' },
   sayNode: { bg: '#6b1d4a', border: '#ec4899', accent: '#f472b6' },
   voicebotNode: { bg: '#134e5e', border: '#06b6d4', accent: '#22d3ee' },
   transferNode: { bg: '#5c3310', border: '#f97316', accent: '#fb923c' },
-  recordNode: { bg: '#6b1a1a', border: '#ef4444', accent: '#f87171' },
+  recordNode: { bg: '#6b1a1a', border: '#d32f2f', accent: '#ef5350' },
   hangupNode: { bg: '#374151', border: '#6b7280', accent: '#9ca3af' },
   gatherNode: { bg: '#5c4b10', border: '#eab308', accent: '#facc15' },
   conditionNode: { bg: '#3b3470', border: '#8b5cf6', accent: '#a78bfa' },
@@ -160,7 +160,7 @@ export const MenuNode = memo(({ data, selected }) => {
             position={Position.Right}
             id="invalid"
             className="node-handle node-handle-source"
-            style={{ borderColor: '#ef4444' }}
+            style={{ borderColor: '#d32f2f' }}
           />
         </div>
       </div>
@@ -218,7 +218,7 @@ export const VoicebotNode = memo(({ data, selected }) => {
         <div className="menu-option-row">
           <span className="key-badge invalid-badge" style={{ fontSize: 10 }}>✗</span>
           <span className="option-label">Error</span>
-          <Handle type="source" position={Position.Right} id="bot-error" className="node-handle node-handle-source" style={{ borderColor: '#ef4444' }} />
+          <Handle type="source" position={Position.Right} id="bot-error" className="node-handle node-handle-source" style={{ borderColor: '#d32f2f' }} />
         </div>
       </div>
     </NodeShell>
@@ -246,7 +246,7 @@ export const TransferNode = memo(({ data, selected }) => {
         <div className="menu-option-row">
           <span className="key-badge invalid-badge" style={{ fontSize: 10 }}>✗</span>
           <span className="option-label">Failed</span>
-          <Handle type="source" position={Position.Right} id="transfer-fail" className="node-handle node-handle-source" style={{ borderColor: '#ef4444' }} />
+          <Handle type="source" position={Position.Right} id="transfer-fail" className="node-handle node-handle-source" style={{ borderColor: '#d32f2f' }} />
         </div>
       </div>
     </NodeShell>
@@ -313,7 +313,7 @@ export const ApiCallNode = memo(({ data, selected }) => {
         <div className="menu-option-row">
           <span className="key-badge invalid-badge" style={{ fontSize: 10 }}>✗</span>
           <span className="option-label">Failure</span>
-          <Handle type="source" position={Position.Right} id="api-fail" className="node-handle node-handle-source" style={{ borderColor: '#ef4444' }} />
+          <Handle type="source" position={Position.Right} id="api-fail" className="node-handle node-handle-source" style={{ borderColor: '#d32f2f' }} />
         </div>
       </div>
     </NodeShell>

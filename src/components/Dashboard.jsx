@@ -4,7 +4,6 @@ import useProjectsStore from '../store/projectsStore';
 import useFlowStore from '../store/flowStore';
 import TemplateGallery from './TemplateGallery';
 import {
-  PhoneOutgoing,
   Plus,
   LayoutTemplate,
   LogOut,
@@ -13,8 +12,10 @@ import {
   Clock,
   Layers,
   PhoneIncoming,
+  PhoneOutgoing,
   Copy,
 } from 'lucide-react';
+import ExotelLogo from './ExotelLogo';
 
 function timeAgo(ts) {
   const diff = Date.now() - ts;
@@ -100,7 +101,8 @@ export default function Dashboard({ onOpenProject }) {
     <div className="dash-page">
       <header className="dash-header">
         <div className="dash-header-left">
-          <PhoneOutgoing size={22} />
+          <ExotelLogo height={22} light={true} />
+          <span className="dash-divider">|</span>
           <h1>IVR Flow Builder</h1>
         </div>
         <div className="dash-header-right">

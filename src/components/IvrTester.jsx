@@ -854,6 +854,37 @@ export default function IvrTester({ isOpen, onClose }) {
         break;
       }
 
+      case 'voicemailNode': {
+        setPhase('processing');
+        const vmMsg = node.data.message || 'Please leave a message after the beep.';
+        const vmTimeout = node.data.timeoutInSec || 30;
+        const vmSilence = node.data.silenceInSec || 5;
+        const vmFinish = node.data.finishOnKey || '#';
+        addStep({
+          type: 'api',
+          text: 'POST /legs/{LegSID}/actions',
+          detail: `<StartRecording silenceInSec="${vmSilence}" finishOnKey="${vmFinish}" timeoutInSec="${vmTimeout}"><Say>${vmMsg}</Say></StartRecording>`,
+        });
+        addStep({ type: 'event', text: 'recording_started (voicemail)' });
+        setFullMessage(vmMsg);
+        setTypedText('');
+        await typeMessage(vmMsg);
+        if (abortRef.current) return;
+        addStep({ type: 'info', text: `Recording for up to ${vmTimeout}s (silence timeout: ${vmSilence}s, finish: ${vmFinish})` });
+        await delay(2000);
+        if (abortRef.current) return;
+        addStep({ type: 'event', text: 'recording_stopped' });
+        addStep({ type: 'event', text: 'recording_available' });
+        setFullMessage('Voicemail recorded');
+        setTypedText('Voicemail recorded');
+        await delay(500);
+        if (abortRef.current) return;
+        const nx = findEdge(nodeId, 'default');
+        if (nx) await walkNode(nx.target, legSid);
+        else endFlow('No connection after voicemail.');
+        break;
+      }
+
       default: {
         addStep({ type: 'info', text: `Unknown node "${node.type}" — skipping` });
         const nx = findEdge(nodeId, 'default');

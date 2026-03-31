@@ -19,6 +19,7 @@ import {
   Hash,
   Globe,
   Zap,
+  Voicemail,
   GripVertical,
 } from 'lucide-react';
 
@@ -49,6 +50,7 @@ const nodeCategories = [
     items: [
       { type: 'startRecordNode', label: 'Start Recording', icon: Mic, color: '#d32f2f', desc: 'Begin call recording' },
       { type: 'stopRecordNode', label: 'Stop Recording', icon: MicOff, color: '#b71c1c', desc: 'End active recording' },
+      { type: 'voicemailNode', label: 'Voicemail', icon: Voicemail, color: '#f59e0b', desc: 'Greeting + record caller message' },
     ],
   },
   {

@@ -263,6 +263,8 @@ function getNodeDefaults(type) {
         channel: 'mono',
         storageType: 's3',
         storageUrl: '',
+        storageUrlKey: '',
+        storageUrlToken: '',
       };
     /** Explicit "start recording" step (same shape intent as record defaults, distinct node type). */
     case 'startRecordNode':
@@ -274,6 +276,8 @@ function getNodeDefaults(type) {
         channel: 'mono',
         storageType: 's3',
         storageUrl: '',
+        storageUrlKey: '',
+        storageUrlToken: '',
       };
     /** Stops an active recording; no extra config beyond label. */
     case 'stopRecordNode':
@@ -327,6 +331,15 @@ function getNodeDefaults(type) {
         headers: '{"Content-Type": "application/json"}',
         body: '{}',
         callbackUrl: 'https://your-server.com/callback',
+      };
+    /** Voicemail: plays a greeting then records the caller's message (Exotel Voicemail action). */
+    case 'voicemailNode':
+      return {
+        label: 'Voicemail',
+        message: 'Please leave a message after the beep.',
+        silenceInSec: 5,
+        finishOnKey: '#',
+        timeoutInSec: 30,
       };
     case 'conditionNode':
       return {

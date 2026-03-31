@@ -5,14 +5,21 @@ import { saveAs } from 'file-saver';
 const nodeTypeLabels = {
   startNode: 'Start (Incoming Call)',
   menuNode: 'IVR Menu',
-  playNode: 'Play Audio',
-  sayNode: 'Say (TTS)',
-  voicebotNode: 'Voicebot',
-  transferNode: 'Transfer Call',
-  recordNode: 'Record',
-  hangupNode: 'Hang Up',
-  gatherNode: 'Gather Digits',
+  playNode: 'Play Audio (StartPlay)',
+  sayNode: 'Say / TTS (StartSay)',
+  messageNode: 'Message (Say)',
+  voicebotNode: 'Voicebot (StartStream)',
+  transferNode: 'Transfer Call (Dial)',
+  recordNode: 'Record (StartRecording)',
+  startRecordNode: 'Start Recording',
+  stopRecordNode: 'Stop Recording',
+  hangupNode: 'Hang Up (Hangup)',
+  gatherNode: 'Gather Digits (Gather)',
   conditionNode: 'Condition',
+  apiCallNode: 'API Call',
+  syncApiNode: 'Sync API Call',
+  asyncApiNode: 'Async API Call',
+  voicemailNode: 'Voicemail',
 };
 
 function buildFlowTree(nodes, edges) {
@@ -84,6 +91,20 @@ function getNodeDetails(node) {
       return 'Terminates the call.';
     case 'gatherNode':
       return `Digits: ${d.numDigits || 1}\nTimeout: ${d.timeout || 10}s\nFinish Key: ${d.finishOnKey || '#'}`;
+    case 'messageNode':
+      return `Message: ${d.message || '—'}`;
+    case 'startRecordNode':
+      return `Direction: ${d.direction || 'both'}\nFormat: ${d.format || 'mp3'}\nBitrate: ${d.bitrate || '8'}\nStorage: ${d.storageType || 's3'}`;
+    case 'stopRecordNode':
+      return 'Stops active recording.';
+    case 'syncApiNode':
+      return `Method: ${d.method || 'POST'}\nURL: ${d.url || '—'}\nTimeout: ${d.timeout || 10}s\nSuccess: ${d.successCondition || '2xx'}`;
+    case 'asyncApiNode':
+      return `Method: ${d.method || 'POST'}\nURL: ${d.url || '—'}\nCallback: ${d.callbackUrl || '—'}`;
+    case 'apiCallNode':
+      return `Mode: ${d.mode || 'sync'}\nMethod: ${d.method || 'POST'}\nURL: ${d.url || '—'}`;
+    case 'voicemailNode':
+      return `Greeting: ${d.message || '—'}\nSilence: ${d.silenceInSec || 5}s\nFinish Key: ${d.finishOnKey || '#'}\nMax Time: ${d.timeoutInSec || 30}s`;
     default:
       return '';
   }

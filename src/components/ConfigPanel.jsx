@@ -385,16 +385,31 @@ function VoicebotConfig({ data, update }) {
       <Field label="Bot Greeting">
         <TextArea value={data.greeting} onChange={(v) => update({ greeting: v })} placeholder="Hello! How can I help?" rows={2} />
       </Field>
-      <Field label="Secure DTMF">
-        <SelectInput
-          value={data.secureDtmf ? 'true' : 'false'}
-          onChange={(v) => update({ secureDtmf: v === 'true' })}
-          options={[
-            { value: 'false', label: 'Disabled' },
-            { value: 'true', label: 'Enabled' },
-          ]}
-        />
-      </Field>
+      {data.streamType === 'unidirectional' && (
+        <Field label="Source Direction">
+          <SelectInput
+            value={data.sourceDirection || 'both'}
+            onChange={(v) => update({ sourceDirection: v })}
+            options={[
+              { value: 'both', label: 'Both' },
+              { value: 'in', label: 'Inbound audio only' },
+              { value: 'out', label: 'Outbound audio only' },
+            ]}
+          />
+        </Field>
+      )}
+      {data.streamType === 'bidirectional' && (
+        <Field label="Secure DTMF">
+          <SelectInput
+            value={data.secureDtmf ? 'true' : 'false'}
+            onChange={(v) => update({ secureDtmf: v === 'true' })}
+            options={[
+              { value: 'false', label: 'Disabled' },
+              { value: 'true', label: 'Enabled' },
+            ]}
+          />
+        </Field>
+      )}
     </>
   );
 }
@@ -426,6 +441,16 @@ function TransferConfig({ data, update }) {
       </Field>
       <Field label="Custom Parameter">
         <TextInput value={data.customParam} onChange={(v) => update({ customParam: v })} placeholder="Optional metadata" />
+      </Field>
+      <Field label="Absorb DTMF">
+        <SelectInput
+          value={data.absorbDtmf != null ? String(data.absorbDtmf) : 'false'}
+          onChange={(v) => update({ absorbDtmf: v === 'true' })}
+          options={[
+            { value: 'false', label: 'No — pass DTMF to callee' },
+            { value: 'true', label: 'Yes — absorb DTMF tones' },
+          ]}
+        />
       </Field>
     </>
   );
@@ -486,9 +511,17 @@ function RecordConfig({ data, update }) {
         />
       </Field>
       {data.storageType === 'https' && (
-        <Field label="Storage URL">
-          <TextInput value={data.storageUrl} onChange={(v) => update({ storageUrl: v })} placeholder="https://upload.example.com" />
-        </Field>
+        <>
+          <Field label="Storage URL">
+            <TextInput value={data.storageUrl} onChange={(v) => update({ storageUrl: v })} placeholder="https://upload.example.com" />
+          </Field>
+          <Field label="Storage URL Key (Basic Auth)">
+            <TextInput value={data.storageUrlKey} onChange={(v) => update({ storageUrlKey: v })} placeholder="key" />
+          </Field>
+          <Field label="Storage URL Token (Basic Auth)">
+            <TextInput value={data.storageUrlToken} onChange={(v) => update({ storageUrlToken: v })} placeholder="token" type="password" />
+          </Field>
+        </>
       )}
     </>
   );
@@ -549,9 +582,17 @@ function StartRecordConfig({ data, update }) {
         />
       </Field>
       {data.storageType === 'https' && (
-        <Field label="Storage URL">
-          <TextInput value={data.storageUrl} onChange={(v) => update({ storageUrl: v })} placeholder="https://upload.example.com" />
-        </Field>
+        <>
+          <Field label="Storage URL">
+            <TextInput value={data.storageUrl} onChange={(v) => update({ storageUrl: v })} placeholder="https://upload.example.com" />
+          </Field>
+          <Field label="Storage URL Key (Basic Auth)">
+            <TextInput value={data.storageUrlKey} onChange={(v) => update({ storageUrlKey: v })} placeholder="key" />
+          </Field>
+          <Field label="Storage URL Token (Basic Auth)">
+            <TextInput value={data.storageUrlToken} onChange={(v) => update({ storageUrlToken: v })} placeholder="token" type="password" />
+          </Field>
+        </>
       )}
     </>
   );
@@ -706,6 +747,35 @@ function AsyncApiConfig({ data, update }) {
 }
 
 // -----------------------------------------------------------------------------
+// Voicemail — plays a greeting then records (Exotel Voicemail action)
+// Uses special StartRecording with silenceInSec, finishOnKey, timeoutInSec
+// and nested Say for the greeting message.
+// -----------------------------------------------------------------------------
+function VoicemailConfig({ data, update }) {
+  return (
+    <>
+      <Field label="Greeting Message">
+        <TextArea
+          value={data.message}
+          onChange={(v) => update({ message: v })}
+          placeholder="Please leave a message after the beep."
+          rows={3}
+        />
+      </Field>
+      <Field label="Silence Timeout (seconds)">
+        <NumberInput value={data.silenceInSec} onChange={(v) => update({ silenceInSec: v })} min={1} max={60} />
+      </Field>
+      <Field label="Finish On Key">
+        <TextInput value={data.finishOnKey} onChange={(v) => update({ finishOnKey: v })} placeholder="#" maxLength={1} />
+      </Field>
+      <Field label="Max Recording Time (seconds)">
+        <NumberInput value={data.timeoutInSec} onChange={(v) => update({ timeoutInSec: v })} min={5} max={300} />
+      </Field>
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
 // Gather DTMF — digit collection
 // -----------------------------------------------------------------------------
 function GatherConfig({ data, update }) {
@@ -842,6 +912,7 @@ const configComponents = {
   stopRecordNode: StopRecordConfig,
   syncApiNode: SyncApiConfig,
   asyncApiNode: AsyncApiConfig,
+  voicemailNode: VoicemailConfig,
 };
 
 // -----------------------------------------------------------------------------

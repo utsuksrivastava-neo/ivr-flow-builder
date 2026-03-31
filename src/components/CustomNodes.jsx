@@ -17,6 +17,7 @@ import {
   Globe,
   MessageCircle,
   Zap,
+  Voicemail,
 } from 'lucide-react';
 
 /**
@@ -83,6 +84,8 @@ const nodeColors = {
   syncApiNode: { bg: '#1a3652', border: '#0ea5e9', accent: '#38bdf8' },
   // Purple — async / fire-and-forget API
   asyncApiNode: { bg: '#2d1a52', border: '#8b5cf6', accent: '#a78bfa' },
+  // Amber — voicemail (record caller message)
+  voicemailNode: { bg: '#5c4b10', border: '#f59e0b', accent: '#fbbf24' },
 };
 
 /** Lucide icon component per node type (used by NodeShell unless iconOverride is set). */
@@ -103,6 +106,7 @@ const nodeIcons = {
   stopRecordNode: MicOff,
   syncApiNode: Globe,
   asyncApiNode: Zap,
+  voicemailNode: Voicemail,
 };
 
 /**
@@ -544,6 +548,23 @@ export const AsyncApiNode = memo(({ id, data, selected }) => (
 ));
 
 /** React Flow node type registry — map type string to component. */
+/** Voicemail: plays a greeting then records the caller's message (Exotel Voicemail action). */
+export const VoicemailNode = memo(({ id, data, selected }) => {
+  const colors = nodeColors.voicemailNode;
+  return (
+    <NodeShell type="voicemailNode" data={data} selected={selected} nodeId={id}>
+      <div className="node-info">
+        <span className="node-detail">
+          <strong>Greeting:</strong> {data.message || '—'}
+        </span>
+        <span className="node-detail" style={{ color: colors.accent }}>
+          Silence: {data.silenceInSec || 5}s &middot; Timeout: {data.timeoutInSec || 30}s &middot; Finish: {data.finishOnKey || '#'}
+        </span>
+      </div>
+    </NodeShell>
+  );
+});
+
 export const nodeTypes = {
   startNode: StartNode,
   menuNode: MenuNode,
@@ -560,6 +581,7 @@ export const nodeTypes = {
   stopRecordNode: StopRecordNode,
   syncApiNode: SyncApiNode,
   asyncApiNode: AsyncApiNode,
+  voicemailNode: VoicemailNode,
 };
 
 export { nodeColors, nodeIcons };

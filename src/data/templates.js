@@ -1,3 +1,8 @@
+/**
+ * IVR flow templates for the visual builder.
+ * Each template includes React Flow nodes/edges plus metadata for the template picker.
+ * Helper to create edges; optional `handle` sets `sourceHandle` (DTMF, API branches, etc.).
+ */
 const edge = (source, target, handle) => ({
   id: handle ? `${source}-${handle}-${target}` : `${source}-to-${target}`,
   source,
@@ -24,6 +29,8 @@ const bankingTemplate = {
   nodes: [
     { id: 'bk1', type: 'startNode', position: { x: 60, y: 420 }, data: { label: 'Incoming Call', callDirection: 'inbound', exophone: '18001234567', eventEndpoint: 'grpc://127.0.0.1:9001' } },
     { id: 'bk2', type: 'sayNode', position: { x: 340, y: 420 }, data: { label: 'Welcome', message: 'Welcome to ICICI Bank. Your call may be recorded for quality and training purposes.', ttsEngine: 'polly', ttsVoice: 'Aditi', ttsLanguage: 'en' } },
+    // Start recording right after the welcome (compliance / quality capture before language menu).
+    { id: 'bk2b', type: 'startRecordNode', position: { x: 490, y: 420 }, data: { label: 'Start Call Recording', direction: 'both', format: 'mp3', bitrate: '8', channel: 'mono', storageType: 's3', storageUrl: '' } },
     { id: 'bk3', type: 'menuNode', position: { x: 640, y: 400 }, data: { label: 'Language Selection', promptType: 'tts', prompt: 'For English, press 1. Hindi ke liye, 2 dabayein.', options: [{ key: '1', label: 'English' }, { key: '2', label: 'Hindi' }], timeout: 5, maxRetries: 3 } },
     { id: 'bk4', type: 'menuNode', position: { x: 1000, y: 340 }, data: { label: 'Main Menu', promptType: 'tts', prompt: 'Press 1 for Account Balance and Mini Statement. Press 2 for Fund Transfer. Press 3 for Credit Card Services. Press 4 for Loan Services. Press 5 to block or unblock your Debit Card. Press 6 for Cheque Book request. Press 0 to speak with our customer care executive.', options: [{ key: '1', label: 'Account Balance' }, { key: '2', label: 'Fund Transfer' }, { key: '3', label: 'Credit Card' }, { key: '4', label: 'Loan Services' }, { key: '5', label: 'Debit Card' }, { key: '6', label: 'Cheque Book' }, { key: '0', label: 'Speak to Agent' }], timeout: 8, maxRetries: 3 } },
     { id: 'bk5', type: 'sayNode', position: { x: 1400, y: 0 }, data: { label: 'Account Balance', message: 'Your savings account ending with 4-5-6-7 has an available balance of Rupees 1,25,430. Your last 3 transactions are: Debit of Rupees 5,000 on March 28th — ATM Withdrawal. Credit of Rupees 45,000 on March 25th — Salary. Debit of Rupees 1,200 on March 22nd — Online Purchase.', ttsEngine: 'polly', ttsVoice: 'Aditi' } },
@@ -43,7 +50,8 @@ const bankingTemplate = {
   ],
   edges: [
     edge('bk1', 'bk2'),
-    edge('bk2', 'bk3'),
+    edge('bk2', 'bk2b'),
+    edge('bk2b', 'bk3'),
     edge('bk3', 'bk4', 'dtmf-1'),
     edge('bk3', 'bk4', 'dtmf-2'),
     edge('bk4', 'bk5', 'dtmf-1'),
@@ -342,6 +350,96 @@ const feedbackTemplate = {
   ],
 };
 
+// ─────────────────────────────────────────
+// 7. KYC VERIFICATION (Outbound) — Banking / Fintech
+// Showcases messageNode, gatherNode (multi-digit), syncApiNode, startRecordNode,
+// stopRecordNode, asyncApiNode, menuNode, and hangupNode.
+// ─────────────────────────────────────────
+const kycTemplate = {
+  id: 'kyc-verification',
+  name: 'KYC Verification',
+  description:
+    'Outbound KYC verification call with Aadhaar verification, consent recording, and async status update. Uses Message, Gather, Recording, and API nodes.',
+  category: 'outbound',
+  industry: 'Banking / Fintech',
+  icon: '🔐',
+  tags: ['KYC', 'Verification', 'Aadhaar', 'Compliance'],
+  projectName: 'KYC Verification — Outbound',
+  nodes: [
+    { id: 'kyc1', type: 'startNode', position: { x: 60, y: 380 }, data: { label: 'Outbound Call', callDirection: 'outbound', contactUri: '09876543210', exophone: '08030752400', eventEndpoint: 'grpc://127.0.0.1:9001' } },
+    { id: 'kyc2', type: 'messageNode', position: { x: 400, y: 380 }, data: { label: 'KYC Introduction', message: 'This is a KYC verification call from your bank. We will verify your identity using your Aadhaar details and record your consent as required by regulations. This call may be recorded.' } },
+    { id: 'kyc3', type: 'gatherNode', position: { x: 760, y: 380 }, data: { label: 'Aadhaar Last 4 Digits', numDigits: 4, timeout: 15, finishOnKey: '#', prompt: 'Please enter the last four digits of your Aadhaar number using your keypad, then press hash.', promptType: 'none' } },
+    {
+      id: 'kyc4',
+      type: 'syncApiNode',
+      position: { x: 1120, y: 380 },
+      data: {
+        label: 'Verify Aadhaar',
+        method: 'POST',
+        url: 'https://api.example.com/kyc/verify-aadhaar',
+        headers: '{"Content-Type": "application/json"}',
+        body: '{"lastFourDigits": "{{digits}}", "callerId": "{{caller_number}}"}',
+        timeout: 15,
+        responseVariable: 'aadhaar_verify',
+        successCondition: '2xx',
+      },
+    },
+    { id: 'kyc5', type: 'messageNode', position: { x: 1480, y: 380 }, data: { label: 'Identity Verified', message: 'Thank you. Your Aadhaar details have been verified successfully.' } },
+    { id: 'kyc6', type: 'startRecordNode', position: { x: 1820, y: 380 }, data: { label: 'Start Consent Recording', direction: 'both', format: 'mp3', bitrate: '8', channel: 'mono', storageType: 's3', storageUrl: '' } },
+    {
+      id: 'kyc7',
+      type: 'menuNode',
+      position: { x: 2160, y: 380 },
+      data: {
+        label: 'Consent',
+        promptType: 'tts',
+        prompt: 'Press 1 to give consent for KYC verification. Press 2 to decline.',
+        options: [{ key: '1', label: 'Consent' }, { key: '2', label: 'Decline' }],
+        timeout: 10,
+        maxRetries: 3,
+      },
+    },
+    { id: 'kyc8', type: 'messageNode', position: { x: 2520, y: 280 }, data: { label: 'Consent Confirmed', message: 'Thank you, your consent has been recorded.' } },
+    { id: 'kyc9', type: 'stopRecordNode', position: { x: 2860, y: 280 }, data: { label: 'Stop Consent Recording' } },
+    {
+      id: 'kyc10',
+      type: 'asyncApiNode',
+      position: { x: 3200, y: 280 },
+      data: {
+        label: 'KYC Status Webhook',
+        method: 'POST',
+        url: 'https://api.example.com/kyc/status-async',
+        headers: '{"Content-Type": "application/json"}',
+        body: '{"status": "consent_recorded", "verification": "{{aadhaar_verify}}"}',
+        callbackUrl: 'https://your-bank.com/webhooks/kyc-callback',
+      },
+    },
+    { id: 'kyc11', type: 'messageNode', position: { x: 3540, y: 280 }, data: { label: 'Closing', message: 'Thank you for completing KYC verification. You will receive an SMS confirmation shortly. Goodbye.' } },
+    { id: 'kyc12', type: 'hangupNode', position: { x: 3880, y: 340 }, data: { label: 'End Call' } },
+    { id: 'kyc13', type: 'messageNode', position: { x: 2520, y: 480 }, data: { label: 'Declined', message: 'We understand. You can complete KYC online through our app or visit your nearest branch. Thank you for your time.' } },
+    { id: 'kyc14', type: 'stopRecordNode', position: { x: 2860, y: 480 }, data: { label: 'Stop Recording (Decline)' } },
+    { id: 'kyc15', type: 'messageNode', position: { x: 1480, y: 200 }, data: { label: 'Verification Failed', message: 'We could not verify your details at this time. Please try again later or visit our branch with your original documents. Goodbye.' } },
+  ],
+  edges: [
+    edge('kyc1', 'kyc2'),
+    edge('kyc2', 'kyc3'),
+    edge('kyc3', 'kyc4'),
+    edge('kyc4', 'kyc5', 'api-success'),
+    edge('kyc4', 'kyc15', 'api-fail'),
+    edge('kyc15', 'kyc12'),
+    edge('kyc5', 'kyc6'),
+    edge('kyc6', 'kyc7'),
+    edge('kyc7', 'kyc8', 'dtmf-1'),
+    edge('kyc7', 'kyc13', 'dtmf-2'),
+    edge('kyc8', 'kyc9'),
+    edge('kyc9', 'kyc10'),
+    edge('kyc10', 'kyc11'),
+    edge('kyc11', 'kyc12'),
+    edge('kyc13', 'kyc14'),
+    edge('kyc14', 'kyc12'),
+  ],
+};
+
 export const templates = [
   bankingTemplate,
   insuranceTemplate,
@@ -349,6 +447,7 @@ export const templates = [
   onboardingTemplate,
   orderConfirmTemplate,
   feedbackTemplate,
+  kycTemplate,
 ];
 
 export default templates;

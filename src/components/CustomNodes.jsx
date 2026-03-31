@@ -1,5 +1,6 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Handle, Position } from 'reactflow';
+import useFlowStore from '../store/flowStore';
 import {
   PhoneOutgoing,
   PhoneIncoming,
@@ -17,6 +18,47 @@ import {
   MessageCircle,
   Zap,
 } from 'lucide-react';
+
+/**
+ * BFS traversal from the start node to assign sequential step numbers.
+ * @param {Array} nodes - React Flow nodes array
+ * @param {Array} edges - React Flow edges array
+ * @returns {Object} Map of nodeId to step number (1-indexed)
+ */
+function computeStepNumbers(nodes, edges) {
+  const startNode = nodes.find((n) => n.type === 'startNode');
+  if (!startNode) return {};
+  const adj = {};
+  edges.forEach((e) => {
+    if (!adj[e.source]) adj[e.source] = [];
+    adj[e.source].push(e.target);
+  });
+  const result = {};
+  const visited = new Set();
+  const queue = [startNode.id];
+  let step = 0;
+  while (queue.length > 0) {
+    const id = queue.shift();
+    if (visited.has(id)) continue;
+    visited.add(id);
+    step++;
+    result[id] = step;
+    (adj[id] || []).forEach((t) => { if (!visited.has(t)) queue.push(t); });
+  }
+  return result;
+}
+
+/**
+ * Hook that returns the BFS step number for a given node ID.
+ * @param {string} nodeId
+ * @returns {number|null}
+ */
+function useStepNumber(nodeId) {
+  const nodes = useFlowStore((s) => s.nodes);
+  const edges = useFlowStore((s) => s.edges);
+  const map = useMemo(() => computeStepNumbers(nodes, edges), [nodes, edges]);
+  return map[nodeId] || null;
+}
 
 /** Maps node type keys to theme colors (background, border, accent) for shells and handles. */
 const nodeColors = {
@@ -75,9 +117,10 @@ const nodeIcons = {
  * @param {string[]} [props.outputIds=['default']] — non-default ids suppress the built-in default handle
  * @param {React.ComponentType<{ size?: number }>} [props.iconOverride]
  */
-function NodeShell({ type, data, selected, children, hasInput = true, outputIds = ['default'], iconOverride }) {
+function NodeShell({ type, data, selected, children, hasInput = true, outputIds = ['default'], iconOverride, nodeId }) {
   const colors = nodeColors[type];
   const Icon = iconOverride || nodeIcons[type];
+  const stepNum = useStepNumber(nodeId);
 
   return (
     <div
@@ -96,6 +139,14 @@ function NodeShell({ type, data, selected, children, hasInput = true, outputIds 
         />
       )}
       <div className="node-header" style={{ borderBottomColor: colors.border + '40' }}>
+        {stepNum && (
+          <span
+            className="node-step-badge"
+            style={{ background: colors.accent, color: '#fff' }}
+          >
+            {stepNum}
+          </span>
+        )}
         <div className="node-icon" style={{ background: colors.border + '30', color: colors.accent }}>
           <Icon size={14} />
         </div>
@@ -129,7 +180,7 @@ function BothDirectionIcons({ size = 14 }) {
  * Entry node: shows call direction, and contact/exophone (or caller id) based on direction.
  * Supports inbound, outbound, and both (dual-direction) flows.
  */
-export const StartNode = memo(({ data, selected }) => {
+export const StartNode = memo(({ id, data, selected }) => {
   const callDirection = data.callDirection;
   const isBoth = callDirection === 'both';
   const isInbound = callDirection === 'inbound';
@@ -143,7 +194,7 @@ export const StartNode = memo(({ data, selected }) => {
   else if (isInbound) directionLabel = '📥 Inbound';
 
   return (
-    <NodeShell type="startNode" data={data} selected={selected} hasInput={false} iconOverride={iconOverride}>
+    <NodeShell type="startNode" data={data} selected={selected} hasInput={false} iconOverride={iconOverride} nodeId={id}>
       <div className="node-info">
         <span className="node-info-label">Direction</span>
         <span className="node-info-value">{directionLabel}</span>
@@ -180,7 +231,7 @@ export const StartNode = memo(({ data, selected }) => {
 });
 
 /** DTMF / IVR menu with per-option and timeout/invalid source handles. */
-export const MenuNode = memo(({ data, selected }) => {
+export const MenuNode = memo(({ id, data, selected }) => {
   const colors = nodeColors.menuNode;
   const options = data.options || [];
   const allOutputs = [
@@ -190,7 +241,7 @@ export const MenuNode = memo(({ data, selected }) => {
   ];
 
   return (
-    <NodeShell type="menuNode" data={data} selected={selected} outputIds={allOutputs}>
+    <NodeShell type="menuNode" data={data} selected={selected} outputIds={allOutputs} nodeId={id}>
       {data.prompt && (
         <div className="node-prompt">{data.prompt.length > 60 ? data.prompt.slice(0, 60) + '…' : data.prompt}</div>
       )}
@@ -238,8 +289,8 @@ export const MenuNode = memo(({ data, selected }) => {
 });
 
 /** Plays an audio URL with optional loop count. */
-export const PlayNode = memo(({ data, selected }) => (
-  <NodeShell type="playNode" data={data} selected={selected}>
+export const PlayNode = memo(({ id, data, selected }) => (
+  <NodeShell type="playNode" data={data} selected={selected} nodeId={id}>
     <div className="node-info">
       <span className="node-info-label">Audio</span>
       <span className="node-info-value url-value">
@@ -256,8 +307,8 @@ export const PlayNode = memo(({ data, selected }) => (
 ));
 
 /** TTS say node: message preview and voice/engine. */
-export const SayNode = memo(({ data, selected }) => (
-  <NodeShell type="sayNode" data={data} selected={selected}>
+export const SayNode = memo(({ id, data, selected }) => (
+  <NodeShell type="sayNode" data={data} selected={selected} nodeId={id}>
     <div className="node-prompt">{data.message ? (data.message.length > 60 ? data.message.slice(0, 60) + '…' : data.message) : 'No message set'}</div>
     <div className="node-info">
       <span className="node-info-label">Voice</span>
@@ -267,10 +318,10 @@ export const SayNode = memo(({ data, selected }) => (
 ));
 
 /** Streaming voicebot with success and error outputs. */
-export const VoicebotNode = memo(({ data, selected }) => {
+export const VoicebotNode = memo(({ id, data, selected }) => {
   const colors = nodeColors.voicebotNode;
   return (
-    <NodeShell type="voicebotNode" data={data} selected={selected} outputIds={['bot-end', 'bot-error']}>
+    <NodeShell type="voicebotNode" data={data} selected={selected} outputIds={['bot-end', 'bot-error']} nodeId={id}>
       <div className="node-info">
         <span className="node-info-label">Type</span>
         <span className="node-info-value">{data.streamType || 'bidirectional'}</span>
@@ -298,10 +349,10 @@ export const VoicebotNode = memo(({ data, selected }) => {
 });
 
 /** Transfer to another destination with success/failure branches. */
-export const TransferNode = memo(({ data, selected }) => {
+export const TransferNode = memo(({ id, data, selected }) => {
   const colors = nodeColors.transferNode;
   return (
-    <NodeShell type="transferNode" data={data} selected={selected} outputIds={['transfer-success', 'transfer-fail']}>
+    <NodeShell type="transferNode" data={data} selected={selected} outputIds={['transfer-success', 'transfer-fail']} nodeId={id}>
       <div className="node-info">
         <span className="node-info-label">To</span>
         <span className="node-info-value">{data.contactUri || '—'}</span>
@@ -327,8 +378,8 @@ export const TransferNode = memo(({ data, selected }) => {
 });
 
 /** Legacy full record configuration (direction + format). */
-export const RecordNode = memo(({ data, selected }) => (
-  <NodeShell type="recordNode" data={data} selected={selected}>
+export const RecordNode = memo(({ id, data, selected }) => (
+  <NodeShell type="recordNode" data={data} selected={selected} nodeId={id}>
     <div className="node-info">
       <span className="node-info-label">Direction</span>
       <span className="node-info-value">{data.direction || 'both'}</span>
@@ -341,8 +392,8 @@ export const RecordNode = memo(({ data, selected }) => (
 ));
 
 /** Terminal hangup — no outgoing edges. */
-export const HangupNode = memo(({ data, selected }) => (
-  <NodeShell type="hangupNode" data={data} selected={selected} outputIds={[]}>
+export const HangupNode = memo(({ id, data, selected }) => (
+  <NodeShell type="hangupNode" data={data} selected={selected} outputIds={[]} nodeId={id}>
     <div className="node-prompt" style={{ opacity: 0.6, textAlign: 'center' }}>
       End of call
     </div>
@@ -350,8 +401,8 @@ export const HangupNode = memo(({ data, selected }) => (
 ));
 
 /** Collect DTMF digits with finish key. */
-export const GatherNode = memo(({ data, selected }) => (
-  <NodeShell type="gatherNode" data={data} selected={selected}>
+export const GatherNode = memo(({ id, data, selected }) => (
+  <NodeShell type="gatherNode" data={data} selected={selected} nodeId={id}>
     <div className="node-info">
       <span className="node-info-label">Digits</span>
       <span className="node-info-value">{data.numDigits || 1}</span>
@@ -364,10 +415,10 @@ export const GatherNode = memo(({ data, selected }) => (
 ));
 
 /** Generic API call with sync/async in data and success/failure handles. */
-export const ApiCallNode = memo(({ data, selected }) => {
+export const ApiCallNode = memo(({ id, data, selected }) => {
   const colors = nodeColors.apiCallNode;
   return (
-    <NodeShell type="apiCallNode" data={data} selected={selected} outputIds={['api-success', 'api-fail']}>
+    <NodeShell type="apiCallNode" data={data} selected={selected} outputIds={['api-success', 'api-fail']} nodeId={id}>
       <div className="node-info">
         <span className="node-info-label">Method</span>
         <span className="node-info-value">
@@ -400,11 +451,11 @@ export const ApiCallNode = memo(({ data, selected }) => {
 /**
  * Simple message display: shows `data.message` truncated to 80 characters; single default output.
  */
-export const MessageNode = memo(({ data, selected }) => {
+export const MessageNode = memo(({ id, data, selected }) => {
   const raw = data.message || '';
   const preview = raw.length > 80 ? raw.slice(0, 80) + '…' : raw || 'No message';
   return (
-    <NodeShell type="messageNode" data={data} selected={selected}>
+    <NodeShell type="messageNode" data={data} selected={selected} nodeId={id}>
       <div className="node-prompt">{preview}</div>
     </NodeShell>
   );
@@ -413,8 +464,8 @@ export const MessageNode = memo(({ data, selected }) => {
 /**
  * Begins recording: shows capture direction and audio format (same fields as legacy RecordNode).
  */
-export const StartRecordNode = memo(({ data, selected }) => (
-  <NodeShell type="startRecordNode" data={data} selected={selected}>
+export const StartRecordNode = memo(({ id, data, selected }) => (
+  <NodeShell type="startRecordNode" data={data} selected={selected} nodeId={id}>
     <div className="node-info">
       <span className="node-info-label">Direction</span>
       <span className="node-info-value">{data.direction || 'both'}</span>
@@ -427,8 +478,8 @@ export const StartRecordNode = memo(({ data, selected }) => (
 ));
 
 /** Stops the active recording; single linear output. */
-export const StopRecordNode = memo(({ data, selected }) => (
-  <NodeShell type="stopRecordNode" data={data} selected={selected}>
+export const StopRecordNode = memo(({ id, data, selected }) => (
+  <NodeShell type="stopRecordNode" data={data} selected={selected} nodeId={id}>
     <div className="node-prompt" style={{ opacity: 0.9 }}>
       Stops active recording
     </div>
@@ -438,10 +489,10 @@ export const StopRecordNode = memo(({ data, selected }) => (
 /**
  * Synchronous HTTP API: method badge + Sync label, URL, and api-success / api-fail source handles.
  */
-export const SyncApiNode = memo(({ data, selected }) => {
+export const SyncApiNode = memo(({ id, data, selected }) => {
   const colors = nodeColors.syncApiNode;
   return (
-    <NodeShell type="syncApiNode" data={data} selected={selected} outputIds={['api-success', 'api-fail']}>
+    <NodeShell type="syncApiNode" data={data} selected={selected} outputIds={['api-success', 'api-fail']} nodeId={id}>
       <div className="node-info">
         <span className="node-info-label">Method</span>
         <span className="node-info-value">
@@ -474,8 +525,8 @@ export const SyncApiNode = memo(({ data, selected }) => {
 /**
  * Asynchronous / fire-and-forget API: method badge + Async label, URL, single default output.
  */
-export const AsyncApiNode = memo(({ data, selected }) => (
-  <NodeShell type="asyncApiNode" data={data} selected={selected}>
+export const AsyncApiNode = memo(({ id, data, selected }) => (
+  <NodeShell type="asyncApiNode" data={data} selected={selected} nodeId={id}>
     <div className="node-info">
       <span className="node-info-label">Method</span>
       <span className="node-info-value">

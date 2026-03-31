@@ -1,10 +1,14 @@
-import React, { useState, useCallback } from 'react';
+/**
+ * @file App.jsx — application shell: login, dashboard, admin user management, and the flow editor.
+ */
+import React, { useState, useCallback, useEffect } from 'react';
 import { ReactFlowProvider } from 'reactflow';
 import useAuthStore from './store/authStore';
 import useProjectsStore from './store/projectsStore';
 import useFlowStore from './store/flowStore';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
+import AdminPage from './components/AdminPage';
 import Sidebar from './components/Sidebar';
 import FlowCanvas from './components/FlowCanvas';
 import ConfigPanel from './components/ConfigPanel';
@@ -14,6 +18,13 @@ import ValidationPanel from './components/ValidationPanel';
 import IvrTester from './components/IvrTester';
 import TemplateGallery from './components/TemplateGallery';
 
+/**
+ * Full-screen flow editor with toolbar, sidebar, validation, and optional mock API / tester / templates.
+ *
+ * @param {object} props
+ * @param {string | null} props.projectId - Active project id for autosave, or null
+ * @param {() => void} props.onBack - Returns to the dashboard and persists the current flow
+ */
 function Editor({ projectId, onBack }) {
   const [apiPanelOpen, setApiPanelOpen] = useState(false);
   const [testerOpen, setTesterOpen] = useState(false);
@@ -62,20 +73,40 @@ function Editor({ projectId, onBack }) {
   );
 }
 
+/** @typedef {'dashboard' | 'editor' | 'admin'} AppPage */
+
+/**
+ * Root app: login gate, then dashboard, admin users, or the IVR editor.
+ */
 export default function App() {
   const user = useAuthStore((s) => s.user);
+  /** @type {[AppPage, React.Dispatch<React.SetStateAction<AppPage>>]} */
   const [page, setPage] = useState('dashboard');
   const [currentProjectId, setCurrentProjectId] = useState(null);
 
+  /**
+   * Normalizes `page` when a non-admin ends up with `admin` (e.g. stale state).
+   */
+  useEffect(() => {
+    if (page === 'admin' && user?.role !== 'admin') {
+      setPage('dashboard');
+    }
+  }, [page, user]);
+
   if (!user) return <LoginPage />;
 
-  if (page === 'dashboard') {
+  if (page === 'admin' && user.role === 'admin') {
+    return <AdminPage onBack={() => setPage('dashboard')} />;
+  }
+
+  if (page === 'dashboard' || (page === 'admin' && user.role !== 'admin')) {
     return (
       <Dashboard
         onOpenProject={(id) => {
           setCurrentProjectId(id);
           setPage('editor');
         }}
+        onAdminPage={() => setPage('admin')}
       />
     );
   }

@@ -49,7 +49,7 @@ function formatDuration(s) {
 
 /**
  * Modal IVR flow simulator: walks the canvas graph, simulates leg actions,
- * DTMF, and API calls with a decision log.
+ * DTMF, barge-in, countdown timers, and API calls with a decision log.
  *
  * @param {object} props
  * @param {boolean} props.isOpen - Whether the tester overlay is visible
@@ -67,6 +67,9 @@ export default function IvrTester({ isOpen, onClose }) {
   const [menuOptions, setMenuOptions] = useState([]);
   const [steps, setSteps] = useState([]);
   const [callDuration, setCallDuration] = useState(0);
+  const [bargeInActive, setBargeInActive] = useState(false);
+  /** When non-null, listening-phase countdown is shown (seconds remaining). */
+  const [countdownSec, setCountdownSec] = useState(null);
 
   const skipRef = useRef(null);
   const dtmfRef = useRef(null);
@@ -74,6 +77,13 @@ export default function IvrTester({ isOpen, onClose }) {
   const typeTimer = useRef(null);
   const durTimer = useRef(null);
   const logEndRef = useRef(null);
+  /** Sequential step index for visited nodes (persists across async `walkNode` calls). */
+  const stepCounterRef = useRef(0);
+  /** If set, the next menu/gather node should treat this key as already pressed (barge-in from prior node). */
+  const pendingDtmfKeyRef = useRef(null);
+  const countdownTimerRef = useRef(null);
+  /** Original timeout (seconds) for the progress bar denominator while countdown is active. */
+  const maxTimeoutRef = useRef(0);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -93,12 +103,41 @@ export default function IvrTester({ isOpen, onClose }) {
       abortRef.current = true;
       clearInterval(typeTimer.current);
       clearInterval(durTimer.current);
+      clearInterval(countdownTimerRef.current);
     };
   }, []);
 
   /**
+   * Starts the listening-phase countdown; at 0 fires gather timeout on `dtmfRef`.
+   * @param {number} seconds - Initial countdown value
+   */
+  const startCountdown = useCallback((seconds) => {
+    maxTimeoutRef.current = seconds;
+    setCountdownSec(seconds);
+    clearInterval(countdownTimerRef.current);
+    countdownTimerRef.current = setInterval(() => {
+      setCountdownSec((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownTimerRef.current);
+          if (dtmfRef.current) dtmfRef.current(null, 'timeout');
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  /**
+   * Clears the listening countdown interval and hides the UI.
+   */
+  const stopCountdown = useCallback(() => {
+    clearInterval(countdownTimerRef.current);
+    setCountdownSec(null);
+  }, []);
+
+  /**
    * Appends one entry to the decision log.
-   * @param {object} step - Step fields (type, text, detail, etc.)
+   * @param {object} step - Step fields (type, text, detail, stepNum, etc.)
    */
   const addStep = useCallback((step) => {
     setSteps((prev) => [...prev, { id: nanoid(6), ...step }]);
@@ -151,11 +190,13 @@ export default function IvrTester({ isOpen, onClose }) {
   const handleSkip = () => skipRef.current?.();
 
   /**
-   * Forwards a keypad press to the active gather/menu wait handler.
+   * Forwards a keypad press to the active gather/menu wait handler or barge-in listener.
    * @param {string} key - DTMF digit pressed
    */
   const handleDtmfPress = (key) => {
-    if (dtmfRef.current && phase === 'listening') dtmfRef.current(key, 'pressed');
+    if (dtmfRef.current && (phase === 'listening' || (phase === 'playing' && bargeInActive))) {
+      dtmfRef.current(key, 'pressed');
+    }
   };
 
   /** Simulates gather timeout for the current listening phase. */
@@ -199,96 +240,279 @@ export default function IvrTester({ isOpen, onClose }) {
     setCurrentNode(node);
     const label = node.data.label;
     const typeLabel = node.type.replace('Node', '').toUpperCase();
-    addStep({ type: 'node', text: `${label}`, detail: typeLabel });
+    stepCounterRef.current += 1;
+    const stepNum = stepCounterRef.current;
+    addStep({ type: 'node', text: `Step ${stepNum}: ${label}`, detail: typeLabel, stepNum });
 
     switch (node.type) {
       case 'sayNode': {
         setPhase('playing');
         addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Say>${node.data.message}</Say>` });
         addStep({ type: 'event', text: 'say_started' });
-        const r = await typeMessage(node.data.message || '(empty message)');
-        if (abortRef.current) return;
-        addStep({ type: r === 'skipped' ? 'skip' : 'info', text: r === 'skipped' ? 'Skipped by tester' : 'Message finished' });
-        addStep({ type: 'event', text: 'say_completed' });
-        setPhase('processing');
-        await delay(150);
-        const nx = findEdge(nodeId, 'default');
-        if (nx) await walkNode(nx.target, legSid);
-        else endFlow('No outgoing connection — flow ends.');
+
+        const nextEdge = findEdge(nodeId, 'default');
+        const nextNode = nextEdge ? nodes.find((n) => n.id === nextEdge.target) : null;
+        const canBargeIn =
+          node.data.bargeIn !== false &&
+          nextNode &&
+          (nextNode.type === 'menuNode' || nextNode.type === 'gatherNode');
+
+        if (canBargeIn) {
+          setBargeInActive(true);
+          const earlyDtmfPromise = new Promise((resolve) => {
+            dtmfRef.current = (key, how) => {
+              dtmfRef.current = null;
+              resolve({ key, how: how || 'pressed' });
+            };
+          });
+          const result = await Promise.race([
+            typeMessage(node.data.message || '(empty message)').then((r) => ({ type: 'message', result: r })),
+            earlyDtmfPromise.then((d) => ({ type: 'dtmf', ...d })),
+          ]);
+          setBargeInActive(false);
+          if (abortRef.current) return;
+          if (result.type === 'dtmf') {
+            clearInterval(typeTimer.current);
+            skipRef.current = null;
+            pendingDtmfKeyRef.current = result.key;
+            addStep({ type: 'dtmf', text: `Barge-in: caller pressed "${result.key}" during message` });
+            addStep({ type: 'event', text: 'say_completed' });
+            setPhase('processing');
+            await delay(150);
+            await walkNode(nextEdge.target, legSid);
+            break;
+          }
+          addStep({
+            type: result.result === 'skipped' ? 'skip' : 'info',
+            text: result.result === 'skipped' ? 'Skipped by tester' : 'Message finished',
+          });
+          addStep({ type: 'event', text: 'say_completed' });
+          setPhase('processing');
+          await delay(150);
+          const nx = findEdge(nodeId, 'default');
+          if (nx) await walkNode(nx.target, legSid);
+          else endFlow('No outgoing connection — flow ends.');
+        } else {
+          const r = await typeMessage(node.data.message || '(empty message)');
+          if (abortRef.current) return;
+          addStep({ type: r === 'skipped' ? 'skip' : 'info', text: r === 'skipped' ? 'Skipped by tester' : 'Message finished' });
+          addStep({ type: 'event', text: 'say_completed' });
+          setPhase('processing');
+          await delay(150);
+          const nx = findEdge(nodeId, 'default');
+          if (nx) await walkNode(nx.target, legSid);
+          else endFlow('No outgoing connection — flow ends.');
+        }
         break;
       }
 
       case 'playNode': {
         setPhase('playing');
-        addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<StartPlay loop="${node.data.loop}">${node.data.audioUrl}</StartPlay>` });
+        addStep({
+          type: 'api',
+          text: `POST /legs/{LegSID}/actions`,
+          detail: `<StartPlay loop="${node.data.loop}">${node.data.audioUrl}</StartPlay>`,
+        });
         addStep({ type: 'event', text: 'play_started' });
-        const r = await typeMessage(`♪ Playing audio: ${node.data.audioUrl || '(no URL)'}`);
-        if (abortRef.current) return;
-        addStep({ type: r === 'skipped' ? 'skip' : 'info', text: r === 'skipped' ? 'Audio skipped' : 'Audio finished' });
-        addStep({ type: 'event', text: 'play_completed' });
-        setPhase('processing');
-        await delay(150);
-        const nx = findEdge(nodeId, 'default');
-        if (nx) await walkNode(nx.target, legSid);
-        else endFlow('No outgoing connection — flow ends.');
+
+        const playText = `♪ Playing audio: ${node.data.audioUrl || '(no URL)'}`;
+        const nextEdge = findEdge(nodeId, 'default');
+        const nextNode = nextEdge ? nodes.find((n) => n.id === nextEdge.target) : null;
+        const canBargeIn =
+          node.data.bargeIn !== false &&
+          nextNode &&
+          (nextNode.type === 'menuNode' || nextNode.type === 'gatherNode');
+
+        if (canBargeIn) {
+          setBargeInActive(true);
+          const earlyDtmfPromise = new Promise((resolve) => {
+            dtmfRef.current = (key, how) => {
+              dtmfRef.current = null;
+              resolve({ key, how: how || 'pressed' });
+            };
+          });
+          const result = await Promise.race([
+            typeMessage(playText).then((r) => ({ type: 'message', result: r })),
+            earlyDtmfPromise.then((d) => ({ type: 'dtmf', ...d })),
+          ]);
+          setBargeInActive(false);
+          if (abortRef.current) return;
+          if (result.type === 'dtmf') {
+            clearInterval(typeTimer.current);
+            skipRef.current = null;
+            pendingDtmfKeyRef.current = result.key;
+            addStep({ type: 'dtmf', text: `Barge-in: caller pressed "${result.key}" during playback` });
+            addStep({ type: 'event', text: 'play_completed' });
+            setPhase('processing');
+            await delay(150);
+            await walkNode(nextEdge.target, legSid);
+            break;
+          }
+          addStep({
+            type: result.result === 'skipped' ? 'skip' : 'info',
+            text: result.result === 'skipped' ? 'Audio skipped' : 'Audio finished',
+          });
+          addStep({ type: 'event', text: 'play_completed' });
+          setPhase('processing');
+          await delay(150);
+          const nx = findEdge(nodeId, 'default');
+          if (nx) await walkNode(nx.target, legSid);
+          else endFlow('No outgoing connection — flow ends.');
+        } else {
+          const r = await typeMessage(playText);
+          if (abortRef.current) return;
+          addStep({ type: r === 'skipped' ? 'skip' : 'info', text: r === 'skipped' ? 'Audio skipped' : 'Audio finished' });
+          addStep({ type: 'event', text: 'play_completed' });
+          setPhase('processing');
+          await delay(150);
+          const nx = findEdge(nodeId, 'default');
+          if (nx) await walkNode(nx.target, legSid);
+          else endFlow('No outgoing connection — flow ends.');
+        }
         break;
       }
 
       case 'menuNode': {
         const promptText =
-          node.data.promptType === 'tts'
-            ? node.data.prompt
-            : `♪ Playing audio: ${node.data.audioUrl}`;
+          node.data.promptType === 'tts' ? node.data.prompt : `♪ Playing audio: ${node.data.audioUrl}`;
+        const allowBargeIn = node.data.bargeIn !== false;
 
-        setPhase('playing');
-        addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Say>${promptText}</Say>` });
-        addStep({ type: 'event', text: 'say_started' });
-        const pr = await typeMessage(promptText || '(empty prompt)');
-        if (abortRef.current) return;
-        addStep({ type: pr === 'skipped' ? 'skip' : 'info', text: pr === 'skipped' ? 'Prompt skipped' : 'Prompt finished' });
-        addStep({ type: 'event', text: 'say_completed' });
+        let earlyKey = pendingDtmfKeyRef.current;
+        pendingDtmfKeyRef.current = null;
 
-        addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Gather numDigits="1" timeoutInSec="${node.data.timeout}"/>` });
-        addStep({ type: 'event', text: 'gather_initiated' });
-        setPhase('listening');
-        addStep({ type: 'listening', text: `Listening for input... (${node.data.timeout}s timeout)` });
+        /**
+         * Routes menu digit: timeout edge, DTMF option edge, or invalid.
+         * @param {string|null} key
+         * @param {string} how
+         */
+        const processMenuKeyResult = async (key, how) => {
+          if (abortRef.current) return;
+          if (how === 'timeout') {
+            addStep({ type: 'dtmf', text: 'Timeout — no input received' });
+            addStep({ type: 'event', text: 'gather_failed {reason: "timeout"}' });
+            const te = edges.find((e) => e.source === nodeId && e.sourceHandle === 'timeout');
+            if (te) {
+              addStep({ type: 'decision', text: 'Routing → Timeout handler' });
+              setPhase('processing');
+              await delay(250);
+              await walkNode(te.target, legSid);
+            } else {
+              endFlow('No timeout handler connected.');
+            }
+          } else {
+            addStep({ type: 'dtmf', text: `Caller pressed: ${key}` });
+            addStep({ type: 'event', text: `gather_success {digits: "${key}"}` });
+            const opt = node.data.options?.find((o) => o.key === key);
+            const hid = opt ? `dtmf-${key}` : 'invalid';
+            const ne = edges.find((e) => e.source === nodeId && e.sourceHandle === hid);
 
-        const { key, how } = await waitForDtmf(node.data.options || []);
-        if (abortRef.current) return;
+            if (opt) addStep({ type: 'decision', text: `Press ${key} → "${opt.label}"` });
+            else addStep({ type: 'decision', text: `"${key}" is invalid → Invalid handler` });
 
-        if (how === 'timeout') {
-          addStep({ type: 'dtmf', text: 'Timeout — no input received' });
-          addStep({ type: 'event', text: 'gather_failed {reason: "timeout"}' });
-          const te = edges.find((e) => e.source === nodeId && e.sourceHandle === 'timeout');
-          if (te) {
-            addStep({ type: 'decision', text: 'Routing → Timeout handler' });
             setPhase('processing');
             await delay(250);
-            await walkNode(te.target, legSid);
+            if (ne) await walkNode(ne.target, legSid);
+            else endFlow(`No connection for "${hid}" — flow ends.`);
+          }
+        };
+
+        if (earlyKey) {
+          addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Say>${promptText}</Say>` });
+          addStep({ type: 'event', text: 'say_started' });
+          addStep({ type: 'skip', text: 'Prompt skipped (barge-in from previous node)' });
+          addStep({ type: 'event', text: 'say_completed' });
+          addStep({
+            type: 'api',
+            text: `POST /legs/{LegSID}/actions`,
+            detail: `<Gather numDigits="1" timeoutInSec="${node.data.timeout}"/>`,
+          });
+          addStep({ type: 'event', text: 'gather_initiated' });
+          await processMenuKeyResult(earlyKey, 'pressed');
+          break;
+        }
+
+        if (allowBargeIn) {
+          setBargeInActive(allowBargeIn);
+
+          const earlyDtmfPromise = new Promise((resolve) => {
+            dtmfRef.current = (key, how) => {
+              dtmfRef.current = null;
+              resolve({ key, how: how || 'pressed' });
+            };
+          });
+
+          setPhase('playing');
+          addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Say>${promptText}</Say>` });
+          addStep({ type: 'event', text: 'say_started' });
+
+          const result = await Promise.race([
+            typeMessage(promptText || '(empty prompt)').then((r) => ({ type: 'message', result: r })),
+            earlyDtmfPromise.then((d) => ({ type: 'dtmf', ...d })),
+          ]);
+
+          if (abortRef.current) return;
+          setBargeInActive(false);
+
+          if (result.type === 'dtmf') {
+            clearInterval(typeTimer.current);
+            skipRef.current = null;
+            earlyKey = result.key;
+            addStep({ type: 'dtmf', text: `Barge-in: caller pressed "${earlyKey}" during prompt` });
+            addStep({ type: 'event', text: 'say_completed' });
           } else {
-            endFlow('No timeout handler connected.');
+            addStep({
+              type: result.result === 'skipped' ? 'skip' : 'info',
+              text: result.result === 'skipped' ? 'Prompt skipped' : 'Prompt finished',
+            });
+            addStep({ type: 'event', text: 'say_completed' });
           }
         } else {
-          addStep({ type: 'dtmf', text: `Caller pressed: ${key}` });
-          addStep({ type: 'event', text: `gather_success {digits: "${key}"}` });
-          const opt = node.data.options?.find((o) => o.key === key);
-          const hid = opt ? `dtmf-${key}` : 'invalid';
-          const ne = edges.find((e) => e.source === nodeId && e.sourceHandle === hid);
-
-          if (opt) addStep({ type: 'decision', text: `Press ${key} → "${opt.label}"` });
-          else addStep({ type: 'decision', text: `"${key}" is invalid → Invalid handler` });
-
-          setPhase('processing');
-          await delay(250);
-          if (ne) await walkNode(ne.target, legSid);
-          else endFlow(`No connection for "${hid}" — flow ends.`);
+          setPhase('playing');
+          addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Say>${promptText}</Say>` });
+          addStep({ type: 'event', text: 'say_started' });
+          const pr = await typeMessage(promptText || '(empty prompt)');
+          if (abortRef.current) return;
+          addStep({ type: pr === 'skipped' ? 'skip' : 'info', text: pr === 'skipped' ? 'Prompt skipped' : 'Prompt finished' });
+          addStep({ type: 'event', text: 'say_completed' });
         }
+
+        if (earlyKey) {
+          addStep({
+            type: 'api',
+            text: `POST /legs/{LegSID}/actions`,
+            detail: `<Gather numDigits="1" timeoutInSec="${node.data.timeout}"/>`,
+          });
+          addStep({ type: 'event', text: 'gather_initiated' });
+          await processMenuKeyResult(earlyKey, 'pressed');
+          break;
+        }
+
+        const timeoutSec = node.data.timeout || 5;
+        addStep({
+          type: 'api',
+          text: `POST /legs/{LegSID}/actions`,
+          detail: `<Gather numDigits="1" timeoutInSec="${node.data.timeout}"/>`,
+        });
+        addStep({ type: 'event', text: 'gather_initiated' });
+        startCountdown(timeoutSec);
+        setPhase('listening');
+        addStep({ type: 'listening', text: `Listening for input... (${timeoutSec}s timeout)` });
+
+        const { key, how } = await waitForDtmf(node.data.options || []);
+        stopCountdown();
+        if (abortRef.current) return;
+
+        await processMenuKeyResult(key, how);
         break;
       }
 
       case 'voicebotNode': {
         setPhase('playing');
-        addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<StartStream streamType="${node.data.streamType}" streamUrl="${node.data.streamUrl}"/>` });
+        addStep({
+          type: 'api',
+          text: `POST /legs/{LegSID}/actions`,
+          detail: `<StartStream streamType="${node.data.streamType}" streamUrl="${node.data.streamUrl}"/>`,
+        });
         addStep({ type: 'event', text: 'stream_initiated' });
         addStep({ type: 'event', text: 'stream_started' });
         const r = await typeMessage(node.data.greeting || 'Voicebot: Hello! How can I help you?');
@@ -305,7 +529,11 @@ export default function IvrTester({ isOpen, onClose }) {
 
       case 'transferNode': {
         setPhase('processing');
-        addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Dial contactUri="${node.data.contactUri}" exophone="${node.data.exophone}"/>` });
+        addStep({
+          type: 'api',
+          text: `POST /legs/{LegSID}/actions`,
+          detail: `<Dial contactUri="${node.data.contactUri}" exophone="${node.data.exophone}"/>`,
+        });
         addStep({ type: 'event', text: 'dial_initiated' });
         setFullMessage(`Transferring call to ${node.data.contactUri}...`);
         setTypedText(`Transferring call to ${node.data.contactUri}...`);
@@ -324,7 +552,11 @@ export default function IvrTester({ isOpen, onClose }) {
 
       case 'recordNode': {
         setPhase('processing');
-        addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<StartRecording direction="${node.data.direction}" format="${node.data.format}"/>` });
+        addStep({
+          type: 'api',
+          text: `POST /legs/{LegSID}/actions`,
+          detail: `<StartRecording direction="${node.data.direction}" format="${node.data.format}"/>`,
+        });
         addStep({ type: 'event', text: 'recording_started' });
         setFullMessage('🔴 Recording in progress...');
         setTypedText('🔴 Recording in progress...');
@@ -341,6 +573,7 @@ export default function IvrTester({ isOpen, onClose }) {
         let collected = '';
         const numDigits = node.data.numDigits || 1;
         const finishOnKey = node.data.finishOnKey || '#';
+        const timeoutVal = node.data.timeout || 5;
 
         addStep({
           type: 'api',
@@ -354,8 +587,33 @@ export default function IvrTester({ isOpen, onClose }) {
           text: `Collecting up to ${numDigits} digit(s)... Press ${finishOnKey} to finish early.`,
         });
 
+        let pendingKey = pendingDtmfKeyRef.current;
+        pendingDtmfKeyRef.current = null;
+
+        if (pendingKey) {
+          addStep({
+            type: 'dtmf',
+            text: `Barge-in: first digit "${pendingKey}" from previous node`,
+          });
+          if (pendingKey === finishOnKey) {
+            addStep({ type: 'dtmf', text: `Finish key "${finishOnKey}" pressed — ending input` });
+          } else {
+            collected += pendingKey;
+            addStep({
+              type: 'dtmf',
+              text: `Digit ${collected.length}/${numDigits}: "${pendingKey}" (collected so far: "${collected}")`,
+            });
+            const display = collected.padEnd(numDigits, '_').split('').join(' ');
+            setFullMessage(`Digits: [ ${display} ]`);
+            setTypedText(`Digits: [ ${display} ]`);
+          }
+        }
+
+        startCountdown(timeoutVal);
+
         while (collected.length < numDigits) {
           const { key, how } = await waitForDtmf([]);
+          stopCountdown();
           if (abortRef.current) return;
 
           if (how === 'timeout') {
@@ -377,7 +635,12 @@ export default function IvrTester({ isOpen, onClose }) {
           const display = collected.padEnd(numDigits, '_').split('').join(' ');
           setFullMessage(`Digits: [ ${display} ]`);
           setTypedText(`Digits: [ ${display} ]`);
+
+          if (collected.length >= numDigits) break;
+          startCountdown(timeoutVal);
         }
+
+        stopCountdown();
 
         if (collected.length > 0) {
           addStep({ type: 'event', text: `gather_success {digits: "${collected}"}` });
@@ -451,6 +714,46 @@ export default function IvrTester({ isOpen, onClose }) {
       case 'messageNode': {
         setPhase('playing');
         addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Say>${node.data.message}</Say>` });
+
+        const nextEdge = findEdge(nodeId, 'default');
+        const nextNode = nextEdge ? nodes.find((n) => n.id === nextEdge.target) : null;
+        const canBargeIn =
+          node.data.bargeIn !== false &&
+          nextNode &&
+          (nextNode.type === 'menuNode' || nextNode.type === 'gatherNode');
+
+        if (canBargeIn) {
+          setBargeInActive(true);
+          const earlyDtmfPromise = new Promise((resolve) => {
+            dtmfRef.current = (key, how) => {
+              dtmfRef.current = null;
+              resolve({ key, how: how || 'pressed' });
+            };
+          });
+          const result = await Promise.race([
+            typeMessage(node.data.message || '(empty message)').then((r) => ({ type: 'message', result: r })),
+            earlyDtmfPromise.then((d) => ({ type: 'dtmf', ...d })),
+          ]);
+          setBargeInActive(false);
+          if (abortRef.current) return;
+          if (result.type === 'dtmf') {
+            clearInterval(typeTimer.current);
+            skipRef.current = null;
+            pendingDtmfKeyRef.current = result.key;
+            addStep({ type: 'dtmf', text: `Barge-in: caller pressed "${result.key}" during message` });
+            setPhase('processing');
+            await delay(150);
+            await walkNode(nextEdge.target, legSid);
+            break;
+          }
+          setPhase('processing');
+          await delay(150);
+          const nx = findEdge(nodeId, 'default');
+          if (nx) await walkNode(nx.target, legSid);
+          else endFlow('No outgoing connection — flow ends.');
+          break;
+        }
+
         await typeMessage(node.data.message || '(empty message)');
         if (abortRef.current) return;
         setPhase('processing');
@@ -566,6 +869,10 @@ export default function IvrTester({ isOpen, onClose }) {
    */
   const startTest = async () => {
     abortRef.current = false;
+    stepCounterRef.current = 0;
+    pendingDtmfKeyRef.current = null;
+    setBargeInActive(false);
+    stopCountdown();
     setSteps([]);
     setCallDuration(0);
     setMenuOptions([]);
@@ -597,9 +904,15 @@ export default function IvrTester({ isOpen, onClose }) {
       addStep({ type: 'event', text: 'leg_answered' });
       addStep({ type: 'info', text: 'Call answered' });
     } else {
-      // Outbound and `both`: simulate outbound; inbound may also occur in production
-      addStep({ type: 'info', text: `Initiating outbound call to ${startNode.data.contactUri || startNode.data.exophone}` });
-      addStep({ type: 'api', text: 'POST /v2/accounts/{AccountSID}/legs', detail: `contact_uri: "${startNode.data.contactUri}", exophone: "${startNode.data.exophone}"` });
+      addStep({
+        type: 'info',
+        text: `Initiating outbound call to ${startNode.data.contactUri || startNode.data.exophone}`,
+      });
+      addStep({
+        type: 'api',
+        text: 'POST /v2/accounts/{AccountSID}/legs',
+        detail: `contact_uri: "${startNode.data.contactUri}", exophone: "${startNode.data.exophone}"`,
+      });
       await delay(700);
       if (abortRef.current) return;
       addStep({ type: 'event', text: 'leg_connecting' });
@@ -618,10 +931,12 @@ export default function IvrTester({ isOpen, onClose }) {
     await walkNode(firstEdge.target, legSid);
   };
 
-  /** Aborts typing, DTMF wait, and marks the test ended. */
+  /** Aborts typing, DTMF wait, countdown, and marks the test ended. */
   const endTest = () => {
     abortRef.current = true;
     clearInterval(typeTimer.current);
+    clearInterval(countdownTimerRef.current);
+    stopCountdown();
     skipRef.current = null;
     if (dtmfRef.current) {
       dtmfRef.current(null, 'aborted');
@@ -635,6 +950,8 @@ export default function IvrTester({ isOpen, onClose }) {
   const resetAndRestart = () => {
     abortRef.current = true;
     clearInterval(typeTimer.current);
+    clearInterval(countdownTimerRef.current);
+    stopCountdown();
     setPhase('idle');
     setTimeout(() => startTest(), 60);
   };
@@ -644,10 +961,21 @@ export default function IvrTester({ isOpen, onClose }) {
   const validKeys = new Set(menuOptions.map((o) => o.key));
   const isListening = phase === 'listening';
   const isPlaying = phase === 'playing';
+  const maxTimeout = maxTimeoutRef.current || 1;
 
   /** Maps log step types to emoji icons in the decision log. */
   const stepIcon = (type) => {
-    const map = { api: '🔌', event: '📡', node: '▶', decision: '➡️', dtmf: '🔢', listening: '👂', skip: '⏭', info: 'ℹ️', error: '❌' };
+    const map = {
+      api: '🔌',
+      event: '📡',
+      node: '▶',
+      decision: '➡️',
+      dtmf: '🔢',
+      listening: '👂',
+      skip: '⏭',
+      info: 'ℹ️',
+      error: '❌',
+    };
     return map[type] || '•';
   };
 
@@ -667,16 +995,19 @@ export default function IvrTester({ isOpen, onClose }) {
           </div>
           <div className="tester-header-right">
             {phase !== 'idle' && phase !== 'ended' && (
-              <button className="toolbar-btn danger" onClick={endTest}>
+              <button type="button" className="toolbar-btn danger" onClick={endTest}>
                 <PhoneOff size={14} />
                 <span>End Call</span>
               </button>
             )}
             <button
+              type="button"
               className="config-btn-icon"
               onClick={() => {
                 abortRef.current = true;
                 clearInterval(typeTimer.current);
+                clearInterval(countdownTimerRef.current);
+                stopCountdown();
                 setPhase('idle');
                 onClose();
               }}
@@ -687,7 +1018,6 @@ export default function IvrTester({ isOpen, onClose }) {
         </div>
 
         <div className="tester-body">
-          {/* ─── Phone Panel ─── */}
           <div className="tester-phone">
             {phase === 'idle' && (
               <div className="tester-idle">
@@ -696,10 +1026,10 @@ export default function IvrTester({ isOpen, onClose }) {
                 </div>
                 <h3>Ready to Test Your IVR</h3>
                 <p>
-                  Experience your flow as a caller would. You'll hear every
-                  message, press DTMF keys, and see every system decision.
+                  Experience your flow as a caller would. You&apos;ll hear every message, press DTMF keys, and see
+                  every system decision.
                 </p>
-                <button className="tester-start-btn" onClick={startTest}>
+                <button type="button" className="tester-start-btn" onClick={startTest}>
                   <PhoneOutgoing size={16} />
                   Start Test Call
                 </button>
@@ -712,8 +1042,16 @@ export default function IvrTester({ isOpen, onClose }) {
                   {isRingingInbound ? <PhoneIncoming size={36} /> : <PhoneOutgoing size={36} />}
                 </div>
                 <h3>{isRingingInbound ? 'Incoming Call...' : 'Calling...'}</h3>
-                <p className="ringing-number">{isRingingInbound ? currentNode?.data.exophone : (currentNode?.data.contactUri || currentNode?.data.exophone)}</p>
-                <div className="ringing-dots"><span /><span /><span /></div>
+                <p className="ringing-number">
+                  {isRingingInbound
+                    ? currentNode?.data.exophone
+                    : currentNode?.data.contactUri || currentNode?.data.exophone}
+                </p>
+                <div className="ringing-dots">
+                  <span />
+                  <span />
+                  <span />
+                </div>
               </div>
             )}
 
@@ -732,8 +1070,17 @@ export default function IvrTester({ isOpen, onClose }) {
                       <Volume2 size={15} />
                       <span>SPEAKING</span>
                       <span className="status-sep">·</span>
-                      <MicOff size={13} className="status-muted" />
-                      <span className="status-sub">Not accepting input</span>
+                      {bargeInActive ? (
+                        <>
+                          <Mic size={13} className="status-bargein" />
+                          <span className="status-sub">Accepting input (barge-in)</span>
+                        </>
+                      ) : (
+                        <>
+                          <MicOff size={13} className="status-muted" />
+                          <span className="status-sub">Not accepting input</span>
+                        </>
+                      )}
                     </>
                   )}
                   {isListening && (
@@ -752,40 +1099,59 @@ export default function IvrTester({ isOpen, onClose }) {
                   )}
                 </div>
 
-                {/* Message being spoken (or gather digit progress while listening) */}
-                {(isPlaying || phase === 'processing' || (isListening && fullMessage.startsWith('Digits:'))) && fullMessage && (
-                  <div className="tester-message-box">
-                    <div className="tester-msg-label">System says:</div>
-                    <div className="tester-msg-text">
-                      <span>{typedText}</span>
-                      {isPlaying && typedText.length < fullMessage.length && (
-                        <span className="typing-cursor">|</span>
-                      )}
-                    </div>
-                    {isPlaying && typedText.length < fullMessage.length && (
-                      <div className="tester-msg-actions">
-                        <button className="tester-skip-btn" onClick={handleSkip}>
-                          <SkipForward size={13} />
-                          Skip to end
-                        </button>
+                {(isPlaying ||
+                  phase === 'processing' ||
+                  (isListening && fullMessage.startsWith('Digits:'))) &&
+                  fullMessage && (
+                    <div className="tester-message-box">
+                      <div className="tester-msg-label">System says:</div>
+                      <div className="tester-msg-text">
+                        <span>{typedText}</span>
+                        {isPlaying && typedText.length < fullMessage.length && (
+                          <span className="typing-cursor">|</span>
+                        )}
                       </div>
-                    )}
-                    <div className="tester-progress">
-                      <div
-                        className="tester-progress-fill"
-                        style={{ width: `${fullMessage.length ? (typedText.length / fullMessage.length) * 100 : 0}%` }}
-                      />
+                      {isPlaying && typedText.length < fullMessage.length && (
+                        <div className="tester-msg-actions">
+                          <button type="button" className="tester-skip-btn" onClick={handleSkip}>
+                            <SkipForward size={13} />
+                            Skip to end
+                          </button>
+                        </div>
+                      )}
+                      <div className="tester-progress">
+                        <div
+                          className="tester-progress-fill"
+                          style={{
+                            width: `${fullMessage.length ? (typedText.length / fullMessage.length) * 100 : 0}%`,
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Listening indicator */}
                 {isListening && (
                   <div className="tester-listen-box">
                     <div className="listen-wave">
-                      <span /><span /><span /><span /><span />
+                      <span />
+                      <span />
+                      <span />
+                      <span />
+                      <span />
                     </div>
                     <p className="listen-label">Waiting for your input...</p>
+                    {countdownSec !== null && (
+                      <div className="listen-countdown">
+                        <Clock size={14} />
+                        <span>{countdownSec}s remaining</span>
+                        <div className="countdown-bar">
+                          <div
+                            className="countdown-fill"
+                            style={{ width: `${(countdownSec / maxTimeout) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     {menuOptions.length > 0 && (
                       <div className="listen-options">
                         {menuOptions.map((o) => (
@@ -798,15 +1164,15 @@ export default function IvrTester({ isOpen, onClose }) {
                   </div>
                 )}
 
-                {/* DTMF Keypad */}
-                <div className={`tester-keypad ${isListening ? 'active' : ''}`}>
+                <div className={`tester-keypad ${isListening || (isPlaying && bargeInActive) ? 'active' : ''}`}>
                   {DTMF_KEYS.map((row, ri) => (
                     <div key={ri} className="kp-row">
                       {row.map((k) => (
                         <button
+                          type="button"
                           key={k}
                           className={`kp-btn ${isListening && validKeys.has(k) ? 'hl' : ''}`}
-                          disabled={!isListening}
+                          disabled={!isListening && !(isPlaying && bargeInActive)}
                           onClick={() => handleDtmfPress(k)}
                         >
                           <span className="kp-digit">{k}</span>
@@ -816,7 +1182,12 @@ export default function IvrTester({ isOpen, onClose }) {
                     </div>
                   ))}
                   <div className="kp-row">
-                    <button className="kp-btn kp-timeout" disabled={!isListening} onClick={handleTimeout}>
+                    <button
+                      type="button"
+                      className="kp-btn kp-timeout"
+                      disabled={!isListening}
+                      onClick={handleTimeout}
+                    >
                       <Clock size={13} />
                       <span className="kp-digit">Timeout</span>
                     </button>
@@ -829,12 +1200,15 @@ export default function IvrTester({ isOpen, onClose }) {
               <div className="tester-ended">
                 <PhoneOff size={36} className="tester-ended-icon" />
                 <h3>Call Ended</h3>
-                <p>Duration: {formatDuration(callDuration)} · {steps.length} steps</p>
+                <p>
+                  Duration: {formatDuration(callDuration)} · {steps.length} steps
+                </p>
                 <div className="tester-ended-btns">
-                  <button className="tester-start-btn" onClick={resetAndRestart}>
+                  <button type="button" className="tester-start-btn" onClick={resetAndRestart}>
                     <RotateCcw size={14} /> Test Again
                   </button>
                   <button
+                    type="button"
                     className="toolbar-btn"
                     onClick={() => {
                       setPhase('idle');
@@ -848,7 +1222,6 @@ export default function IvrTester({ isOpen, onClose }) {
             )}
           </div>
 
-          {/* ─── Decision Log ─── */}
           <div className="tester-log">
             <div className="tester-log-head">
               <span>System Decision Log</span>
@@ -857,14 +1230,16 @@ export default function IvrTester({ isOpen, onClose }) {
             <div className="tester-log-body">
               {steps.length === 0 && (
                 <div className="tester-log-empty">
-                  Start the test to see every API call, event, and routing
-                  decision made by the IVR system.
+                  Start the test to see every API call, event, and routing decision made by the IVR system.
                 </div>
               )}
               {steps.map((s) => (
                 <div key={s.id} className={`ts ${s.type}`}>
                   <span className="ts-icon">{stepIcon(s.type)}</span>
                   <div className="ts-body">
+                    {s.type === 'node' && s.stepNum != null && (
+                      <span className="ts-step-badge">Step {s.stepNum}</span>
+                    )}
                     <span className="ts-text">{s.text}</span>
                     {s.detail && <span className="ts-detail">{s.detail}</span>}
                   </div>
@@ -878,3 +1253,4 @@ export default function IvrTester({ isOpen, onClose }) {
     </div>
   );
 }
+

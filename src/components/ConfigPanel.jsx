@@ -78,6 +78,50 @@ function TextArea({ value, onChange, placeholder, rows = 3 }) {
   );
 }
 
+/**
+ * Toggle switch for barge-in (allow DTMF input during message playback).
+ */
+function BargeInToggle({ data, update }) {
+  const enabled = data.bargeIn !== false;
+  return (
+    <Field label="Barge-in (accept input during playback)">
+      <div
+        className="config-toggle-row"
+        style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+        onClick={() => update({ bargeIn: !enabled })}
+      >
+        <div
+          className={`config-toggle ${enabled ? 'on' : ''}`}
+          style={{
+            width: 36,
+            height: 20,
+            borderRadius: 10,
+            background: enabled ? '#4DB961' : '#475569',
+            position: 'relative',
+            transition: 'background 0.2s',
+          }}
+        >
+          <div
+            style={{
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              background: '#fff',
+              position: 'absolute',
+              top: 2,
+              left: enabled ? 18 : 2,
+              transition: 'left 0.2s',
+            }}
+          />
+        </div>
+        <span style={{ fontSize: 13, color: enabled ? '#4DB961' : '#94a3b8' }}>
+          {enabled ? 'Enabled — caller can press keys during playback' : 'Disabled — caller must wait for playback to finish'}
+        </span>
+      </div>
+    </Field>
+  );
+}
+
 // -----------------------------------------------------------------------------
 // Start node — entry point: call direction, optional outbound number, exophone, gRPC
 // Legacy `outbound` is treated as `both` for the selector (outbound leg needs a number).
@@ -245,6 +289,7 @@ function MenuConfig({ data, update }) {
       <Field label="Invalid Input Message">
         <TextInput value={data.invalidMessage} onChange={(v) => update({ invalidMessage: v })} placeholder="Invalid option..." />
       </Field>
+      <BargeInToggle data={data} update={update} />
     </>
   );
 }
@@ -267,6 +312,7 @@ function PlayConfig({ data, update }) {
       <Field label="Password (for HTTPS)">
         <TextInput value={data.password} onChange={(v) => update({ password: v })} placeholder="Optional" type="password" />
       </Field>
+      <BargeInToggle data={data} update={update} />
     </>
   );
 }
@@ -310,6 +356,7 @@ function SayConfig({ data, update }) {
       <Field label="Loop Count">
         <NumberInput value={data.loop} onChange={(v) => update({ loop: v })} min={0} max={10} />
       </Field>
+      <BargeInToggle data={data} update={update} />
     </>
   );
 }
@@ -522,6 +569,7 @@ function MessageConfig({ data, update }) {
           rows={4}
         />
       </Field>
+      <BargeInToggle data={data} update={update} />
     </>
   );
 }

@@ -15,6 +15,7 @@ import {
   PhoneOutgoing,
   Copy,
   X,
+  Shield,
 } from 'lucide-react';
 import ExotelLogo from './ExotelLogo';
 
@@ -41,8 +42,9 @@ function timeAgo(ts) {
  *
  * @param {object} props
  * @param {(projectId: string) => void} props.onOpenProject - Navigates to the editor with the given project id
+ * @param {(() => void) | undefined} props.onAdminPage - Opens the user management screen (admins only)
  */
-export default function Dashboard({ onOpenProject }) {
+export default function Dashboard({ onOpenProject, onAdminPage }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const projects = useProjectsStore((s) => s.projects);
@@ -205,7 +207,13 @@ export default function Dashboard({ onOpenProject }) {
         </div>
         <div className="dash-header-right">
           <span className="dash-user">Welcome, {user?.name || 'User'}</span>
-          <button className="toolbar-btn" onClick={logout}>
+          {user?.role === 'admin' && (
+            <button type="button" className="toolbar-btn" onClick={() => onAdminPage?.()}>
+              <Shield size={14} />
+              <span>Admin</span>
+            </button>
+          )}
+          <button type="button" className="toolbar-btn" onClick={logout}>
             <LogOut size={14} />
             <span>Logout</span>
           </button>

@@ -75,8 +75,51 @@ describe('logout', () => {
 describe('persistence', () => {
   it('restores user from localStorage on store init', () => {
     localStorage.setItem('ivr-auth', JSON.stringify({ username: 'demo', name: 'Demo User' }));
-    // The store reads from localStorage in its initializer; re-read:
     const stored = JSON.parse(localStorage.getItem('ivr-auth'));
     expect(stored.username).toBe('demo');
+  });
+});
+
+/* ────────────────────────────────────────────── */
+/*  User Management (admin features)              */
+/* ────────────────────────────────────────────── */
+describe('user management', () => {
+  beforeEach(() => {
+    localStorage.removeItem('ivr-users');
+    localStorage.removeItem('ivr-auth');
+    useAuthStore.setState({ user: null, users: [{ username: 'demo', password: 'demo123', name: 'Demo User', role: 'admin' }] });
+    localStorage.setItem('ivr-users', JSON.stringify([{ username: 'demo', password: 'demo123', name: 'Demo User', role: 'admin' }]));
+  });
+
+  it('login sets role on user session', () => {
+    useAuthStore.getState().login('demo', 'demo123');
+    expect(useAuthStore.getState().user.role).toBe('admin');
+  });
+
+  it('addUser creates a new user', () => {
+    const res = useAuthStore.getState().addUser('alice', 'pass', 'Alice', 'user');
+    expect(res.success).toBe(true);
+    const users = useAuthStore.getState().users;
+    expect(users.some((u) => u.username === 'alice')).toBe(true);
+  });
+
+  it('addUser rejects duplicate username', () => {
+    useAuthStore.getState().addUser('bob', 'pass', 'Bob', 'user');
+    const res = useAuthStore.getState().addUser('bob', 'pass2', 'Bob2', 'user');
+    expect(res.success).toBe(false);
+  });
+
+  it('deleteUser removes a user', () => {
+    useAuthStore.getState().login('demo', 'demo123');
+    useAuthStore.getState().addUser('temp', 'pass', 'Temp', 'user');
+    const res = useAuthStore.getState().deleteUser('temp');
+    expect(res.success).toBe(true);
+    expect(useAuthStore.getState().users.some((u) => u.username === 'temp')).toBe(false);
+  });
+
+  it('deleteUser prevents deleting yourself', () => {
+    useAuthStore.getState().login('demo', 'demo123');
+    const res = useAuthStore.getState().deleteUser('demo');
+    expect(res.success).toBe(false);
   });
 });

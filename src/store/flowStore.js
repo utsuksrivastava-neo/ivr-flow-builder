@@ -209,6 +209,7 @@ function getNodeDefaults(type) {
         timeout: 5,
         maxRetries: 3,
         invalidMessage: 'Invalid option. Please try again.',
+        bargeIn: true,
       };
     case 'playNode':
       return {
@@ -217,6 +218,7 @@ function getNodeDefaults(type) {
         loop: 1,
         username: '',
         password: '',
+        bargeIn: true,
       };
     case 'sayNode':
       return {
@@ -226,12 +228,14 @@ function getNodeDefaults(type) {
         ttsVoice: 'Aditi',
         ttsLanguage: 'en',
         loop: 1,
+        bargeIn: true,
       };
     /** Plain text message node (no TTS configuration). */
     case 'messageNode':
       return {
         label: 'Message',
         message: 'Hello! Thank you for calling.',
+        bargeIn: true,
       };
     case 'voicebotNode':
       return {

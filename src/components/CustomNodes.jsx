@@ -12,6 +12,7 @@ import {
   PhoneOff,
   Hash,
   GitBranch,
+  Globe,
 } from 'lucide-react';
 
 const nodeColors = {
@@ -25,6 +26,7 @@ const nodeColors = {
   hangupNode: { bg: '#374151', border: '#6b7280', accent: '#9ca3af' },
   gatherNode: { bg: '#5c4b10', border: '#eab308', accent: '#facc15' },
   conditionNode: { bg: '#3b3470', border: '#8b5cf6', accent: '#a78bfa' },
+  apiCallNode: { bg: '#1a3652', border: '#0ea5e9', accent: '#38bdf8' },
 };
 
 const nodeIcons = {
@@ -38,6 +40,7 @@ const nodeIcons = {
   hangupNode: PhoneOff,
   gatherNode: Hash,
   conditionNode: GitBranch,
+  apiCallNode: Globe,
 };
 
 function NodeShell({ type, data, selected, children, hasInput = true, outputIds = ['default'], iconOverride }) {
@@ -284,6 +287,39 @@ export const GatherNode = memo(({ data, selected }) => (
   </NodeShell>
 ));
 
+export const ApiCallNode = memo(({ data, selected }) => {
+  const colors = nodeColors.apiCallNode;
+  return (
+    <NodeShell type="apiCallNode" data={data} selected={selected} outputIds={['api-success', 'api-fail']}>
+      <div className="node-info">
+        <span className="node-info-label">Method</span>
+        <span className="node-info-value">
+          <span className={`method-badge method-${(data.method || 'POST').toLowerCase()}`}>{data.method || 'POST'}</span>
+          {data.mode === 'async' ? ' Async' : ' Sync'}
+        </span>
+      </div>
+      <div className="node-info">
+        <span className="node-info-label">URL</span>
+        <span className="node-info-value url-value">
+          {data.url ? (data.url.length > 32 ? data.url.slice(0, 32) + '…' : data.url) : 'Not set'}
+        </span>
+      </div>
+      <div className="menu-options" style={{ marginTop: 6 }}>
+        <div className="menu-option-row">
+          <span className="key-badge" style={{ background: colors.border, color: '#fff', fontSize: 10 }}>✓</span>
+          <span className="option-label">Success</span>
+          <Handle type="source" position={Position.Right} id="api-success" className="node-handle node-handle-source" style={{ borderColor: colors.accent }} />
+        </div>
+        <div className="menu-option-row">
+          <span className="key-badge invalid-badge" style={{ fontSize: 10 }}>✗</span>
+          <span className="option-label">Failure</span>
+          <Handle type="source" position={Position.Right} id="api-fail" className="node-handle node-handle-source" style={{ borderColor: '#ef4444' }} />
+        </div>
+      </div>
+    </NodeShell>
+  );
+});
+
 export const nodeTypes = {
   startNode: StartNode,
   menuNode: MenuNode,
@@ -294,6 +330,7 @@ export const nodeTypes = {
   recordNode: RecordNode,
   hangupNode: HangupNode,
   gatherNode: GatherNode,
+  apiCallNode: ApiCallNode,
 };
 
 export { nodeColors, nodeIcons };

@@ -86,6 +86,23 @@ export function validateFlow(nodes, edges) {
           category: 'unconnected',
         });
       }
+    } else if (node.type === 'apiCallNode') {
+      if (!outEdges.some((e) => e.sourceHandle === 'api-success')) {
+        issues.push({
+          severity: 'warning',
+          nodeId: node.id,
+          message: `"${node.data.label}" — "Success" path is not connected.`,
+          category: 'unconnected',
+        });
+      }
+      if (!outEdges.some((e) => e.sourceHandle === 'api-fail')) {
+        issues.push({
+          severity: 'warning',
+          nodeId: node.id,
+          message: `"${node.data.label}" — "Failure" path is not connected.`,
+          category: 'unconnected',
+        });
+      }
     } else if (node.type === 'transferNode') {
       if (!outEdges.some((e) => e.sourceHandle === 'transfer-success')) {
         issues.push({

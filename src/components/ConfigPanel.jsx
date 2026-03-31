@@ -422,6 +422,91 @@ function HangupConfig() {
   );
 }
 
+function ApiCallConfig({ data, update }) {
+  return (
+    <>
+      <Field label="Mode">
+        <SelectInput
+          value={data.mode || 'sync'}
+          onChange={(v) => update({ mode: v })}
+          options={[
+            { value: 'sync', label: 'Synchronous (wait for response)' },
+            { value: 'async', label: 'Asynchronous (fire & continue)' },
+          ]}
+        />
+      </Field>
+      <Field label="HTTP Method">
+        <SelectInput
+          value={data.method || 'POST'}
+          onChange={(v) => update({ method: v })}
+          options={[
+            { value: 'GET', label: 'GET' },
+            { value: 'POST', label: 'POST' },
+            { value: 'PUT', label: 'PUT' },
+            { value: 'DELETE', label: 'DELETE' },
+            { value: 'PATCH', label: 'PATCH' },
+          ]}
+        />
+      </Field>
+      <Field label="URL">
+        <TextInput
+          value={data.url}
+          onChange={(v) => update({ url: v })}
+          placeholder="https://api.example.com/endpoint"
+        />
+      </Field>
+      <Field label="Headers (JSON)">
+        <TextArea
+          value={data.headers}
+          onChange={(v) => update({ headers: v })}
+          placeholder='{"Authorization": "Bearer ..."}'
+          rows={3}
+        />
+      </Field>
+      {(data.method === 'POST' || data.method === 'PUT' || data.method === 'PATCH') && (
+        <Field label="Request Body (JSON)">
+          <TextArea
+            value={data.body}
+            onChange={(v) => update({ body: v })}
+            placeholder='{"key": "value"}'
+            rows={4}
+          />
+        </Field>
+      )}
+      <Field label="Timeout (seconds)">
+        <NumberInput value={data.timeout} onChange={(v) => update({ timeout: v })} min={1} max={120} />
+      </Field>
+      {data.mode === 'async' && (
+        <Field label="Callback URL">
+          <TextInput
+            value={data.callbackUrl}
+            onChange={(v) => update({ callbackUrl: v })}
+            placeholder="https://your-server.com/callback"
+          />
+        </Field>
+      )}
+      <Field label="Response Variable Name">
+        <TextInput
+          value={data.responseVariable}
+          onChange={(v) => update({ responseVariable: v })}
+          placeholder="api_response"
+        />
+      </Field>
+      <Field label="Success Condition">
+        <SelectInput
+          value={data.successCondition || '2xx'}
+          onChange={(v) => update({ successCondition: v })}
+          options={[
+            { value: '2xx', label: 'Any 2xx status' },
+            { value: '200', label: 'Exactly 200 OK' },
+            { value: 'non-5xx', label: 'Anything except 5xx' },
+          ]}
+        />
+      </Field>
+    </>
+  );
+}
+
 const configComponents = {
   startNode: StartConfig,
   menuNode: MenuConfig,
@@ -432,6 +517,7 @@ const configComponents = {
   recordNode: RecordConfig,
   hangupNode: HangupConfig,
   gatherNode: GatherConfig,
+  apiCallNode: ApiCallConfig,
 };
 
 export default function ConfigPanel() {

@@ -252,6 +252,19 @@ function getNodeDefaults(type) {
         prompt: '',
         promptType: 'none',
       };
+    case 'apiCallNode':
+      return {
+        label: 'API Call',
+        mode: 'sync',
+        method: 'POST',
+        url: 'https://api.example.com/check',
+        headers: '{"Content-Type": "application/json"}',
+        body: '{"phone": "{{caller_number}}"}',
+        timeout: 10,
+        callbackUrl: '',
+        responseVariable: 'api_response',
+        successCondition: '2xx',
+      };
     case 'conditionNode':
       return {
         label: 'Condition',

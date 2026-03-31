@@ -9,6 +9,7 @@ import {
   Mic,
   PhoneOff,
   Hash,
+  Globe,
   GripVertical,
 } from 'lucide-react';
 
@@ -34,6 +35,12 @@ const nodeCategories = [
     title: 'AI / Bot',
     items: [
       { type: 'voicebotNode', label: 'Voicebot', icon: Bot, color: '#06b6d4', desc: 'WebSocket voice bot' },
+    ],
+  },
+  {
+    title: 'Integration',
+    items: [
+      { type: 'apiCallNode', label: 'API Call', icon: Globe, color: '#0ea5e9', desc: 'HTTP API call (sync / async)' },
     ],
   },
 ];

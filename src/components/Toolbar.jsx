@@ -17,9 +17,11 @@ import {
   AlertTriangle,
   PhoneOutgoing,
   LayoutTemplate,
+  Save,
+  ArrowLeft,
 } from 'lucide-react';
 
-export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates }) {
+export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates, onSave, onBack }) {
   const projectName = useFlowStore((s) => s.projectName);
   const setProjectName = useFlowStore((s) => s.setProjectName);
   const getFlowData = useFlowStore((s) => s.getFlowData);
@@ -33,6 +35,7 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
   const [exportOpen, setExportOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [tempName, setTempName] = useState(projectName);
+  const [saved, setSaved] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleExport = (type) => {
@@ -62,9 +65,20 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
     setEditing(false);
   };
 
+  const handleSave = () => {
+    if (onSave) onSave();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
   return (
     <header className="toolbar">
       <div className="toolbar-left">
+        {onBack && (
+          <button className="toolbar-btn back-btn" onClick={onBack} title="Back to Dashboard">
+            <ArrowLeft size={16} />
+          </button>
+        )}
         <div className="toolbar-title">
           {editing ? (
             <div className="title-edit">
@@ -127,6 +141,10 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
       </div>
 
       <div className="toolbar-right">
+        <button className={`toolbar-btn save-btn ${saved ? 'saved' : ''}`} onClick={handleSave}>
+          <Save size={14} />
+          <span>{saved ? 'Saved!' : 'Save'}</span>
+        </button>
         <button className="toolbar-btn" onClick={() => fileInputRef.current?.click()}>
           <Upload size={14} />
           <span>Import</span>

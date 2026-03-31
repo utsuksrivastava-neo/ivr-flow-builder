@@ -312,6 +312,50 @@ export default function IvrTester({ isOpen, onClose }) {
         break;
       }
 
+      case 'apiCallNode': {
+        setPhase('processing');
+        const isSyncMode = node.data.mode !== 'async';
+        addStep({
+          type: 'api',
+          text: `${node.data.method || 'POST'} ${node.data.url || '(no URL)'}`,
+          detail: `Mode: ${isSyncMode ? 'Synchronous' : 'Asynchronous'} · Timeout: ${node.data.timeout || 10}s`,
+        });
+        if (node.data.headers) {
+          addStep({ type: 'info', text: `Headers: ${node.data.headers}` });
+        }
+        if (node.data.body && ['POST', 'PUT', 'PATCH'].includes(node.data.method)) {
+          addStep({ type: 'info', text: `Body: ${node.data.body}` });
+        }
+
+        if (isSyncMode) {
+          setFullMessage(`Calling API: ${node.data.method} ${node.data.url}`);
+          setTypedText(`Calling API: ${node.data.method} ${node.data.url}`);
+          addStep({ type: 'listening', text: `Waiting for response... (timeout: ${node.data.timeout}s)` });
+          await delay(1800);
+          if (abortRef.current) return;
+          addStep({ type: 'event', text: 'api_response: 200 OK' });
+          addStep({ type: 'decision', text: '{"status":"success","data":{"verified":true,"balance":12500}}' });
+          addStep({ type: 'info', text: `Stored in variable: ${node.data.responseVariable || 'api_response'}` });
+        } else {
+          addStep({ type: 'info', text: 'Async call dispatched — not waiting for response' });
+          if (node.data.callbackUrl) {
+            addStep({ type: 'event', text: `Callback URL: ${node.data.callbackUrl}` });
+          }
+          setFullMessage(`Async API fired: ${node.data.method} ${node.data.url}`);
+          setTypedText(`Async API fired: ${node.data.method} ${node.data.url}`);
+          await delay(600);
+        }
+        if (abortRef.current) return;
+
+        addStep({ type: 'decision', text: 'Routing → Success path' });
+        setPhase('processing');
+        await delay(300);
+        const apiNext = edges.find((e) => e.source === nodeId && e.sourceHandle === 'api-success');
+        if (apiNext) await walkNode(apiNext.target, legSid);
+        else endFlow('No success path connected to API Call.');
+        break;
+      }
+
       default: {
         addStep({ type: 'info', text: `Unknown node "${node.type}" — skipping` });
         const nx = findEdge(nodeId, 'default');

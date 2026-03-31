@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import useFlowStore from '../store/flowStore';
 import { exportToExcel, exportToWord, exportToJSON, importFromJSON } from '../utils/exportUtils';
 import {
@@ -19,6 +19,8 @@ import {
   LayoutTemplate,
   Save,
   ArrowLeft,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 
 export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates, onSave, onBack }) {
@@ -31,6 +33,11 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
   const validationIssues = useFlowStore((s) => s.validationIssues);
   const validationVisible = useFlowStore((s) => s.validationVisible);
   const setValidationVisible = useFlowStore((s) => s.setValidationVisible);
+  const undo = useFlowStore((s) => s.undo);
+  const redo = useFlowStore((s) => s.redo);
+  const canUndo = useFlowStore((s) => s.canUndo);
+  const canRedo = useFlowStore((s) => s.canRedo);
+  const lastAutoSaved = useFlowStore((s) => s.lastAutoSaved);
 
   const [exportOpen, setExportOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -38,18 +45,26 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef(null);
 
+  /* Keyboard shortcuts: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z */
+  useEffect(() => {
+    const handler = (e) => {
+      const isMeta = e.metaKey || e.ctrlKey;
+      if (!isMeta) return;
+      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if (e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); }
+      if (e.key === 'y') { e.preventDefault(); redo(); }
+      if (e.key === 's') { e.preventDefault(); handleSave(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [undo, redo]);
+
   const handleExport = async (type) => {
     const data = getFlowData();
     switch (type) {
-      case 'excel':
-        await exportToExcel(data);
-        break;
-      case 'word':
-        exportToWord(data);
-        break;
-      case 'json':
-        exportToJSON(data);
-        break;
+      case 'excel': await exportToExcel(data); break;
+      case 'word': exportToWord(data); break;
+      case 'json': exportToJSON(data); break;
     }
     setExportOpen(false);
   };
@@ -71,11 +86,20 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
     setEditing(false);
   };
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (onSave) onSave();
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }, [onSave]);
+
+  const handleClearCanvas = () => {
+    if (!confirm('Clear the entire canvas? This will remove all nodes and edges. You can undo this action.')) return;
+    clearCanvas();
   };
+
+  const autoSaveLabel = lastAutoSaved
+    ? `Auto-saved ${new Date(lastAutoSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : null;
 
   return (
     <header className="toolbar">
@@ -105,6 +129,25 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
               <Pencil size={12} className="title-edit-icon" />
             </div>
           )}
+        </div>
+        {/* Undo / Redo buttons */}
+        <div className="toolbar-undo-redo">
+          <button
+            className="toolbar-btn icon-only"
+            onClick={undo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 size={15} />
+          </button>
+          <button
+            className="toolbar-btn icon-only"
+            onClick={redo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo2 size={15} />
+          </button>
         </div>
       </div>
 
@@ -147,6 +190,9 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
       </div>
 
       <div className="toolbar-right">
+        {autoSaveLabel && (
+          <span className="autosave-badge" title="Autosave active">{autoSaveLabel}</span>
+        )}
         <button className={`toolbar-btn save-btn ${saved ? 'saved' : ''}`} onClick={handleSave}>
           <Save size={14} />
           <span>{saved ? 'Saved!' : 'Save'}</span>
@@ -199,7 +245,7 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
           )}
         </div>
 
-        <button className="toolbar-btn danger" onClick={clearCanvas} title="Clear Canvas">
+        <button className="toolbar-btn danger" onClick={handleClearCanvas} title="Clear Canvas">
           <Trash2 size={14} />
         </button>
       </div>

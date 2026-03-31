@@ -4,10 +4,6 @@ import { nanoid } from 'nanoid';
 import { autoLayoutNodes } from '../utils/layoutUtils';
 import { validateFlow, getIssueCountsForNodes } from '../utils/validationUtils';
 
-/**
- * Initial canvas node: the flow entry point (start node).
- * Shipped with every new project and restored by {@link clearCanvas} when the canvas is reset.
- */
 const defaultStartNode = {
   id: 'start-1',
   type: 'startNode',
@@ -21,10 +17,29 @@ const defaultStartNode = {
   },
 };
 
-/**
- * Zustand store for the IVR flow editor: nodes, edges, selection, validation, simulation, and API logs.
- * React Flow drives the graph; this store is the single source of truth for persisted flow state.
- */
+/* ─── Undo / Redo history ─────────────────────────────────── */
+const MAX_HISTORY = 50;
+let _undoStack = [];
+let _redoStack = [];
+let _skipSnapshot = false;
+
+function snapshot(state) {
+  return {
+    nodes: JSON.parse(JSON.stringify(state.nodes)),
+    edges: JSON.parse(JSON.stringify(state.edges)),
+  };
+}
+
+function pushUndo(state) {
+  if (_skipSnapshot) return;
+  _undoStack.push(snapshot(state));
+  if (_undoStack.length > MAX_HISTORY) _undoStack.shift();
+  _redoStack = [];
+}
+
+/* ─── Dirty tracking for autosave ─────────────────────────── */
+let _lastSavedJSON = '';
+
 const useFlowStore = create((set, get) => ({
   nodes: [defaultStartNode],
   edges: [],
@@ -36,18 +51,36 @@ const useFlowStore = create((set, get) => ({
   validationIssues: [],
   validationNodeCounts: {},
   validationVisible: false,
+  canUndo: false,
+  canRedo: false,
+  isDirty: false,
+  lastAutoSaved: null,
 
-  setProjectName: (name) => set({ projectName: name }),
+  setProjectName: (name) => set({ projectName: name, isDirty: true }),
 
   onNodesChange: (changes) => {
-    set({ nodes: applyNodeChanges(changes, get().nodes) });
+    const isDrag = changes.every((c) => c.type === 'position' || c.type === 'dimensions' || c.type === 'select');
+    if (!isDrag) pushUndo(get());
+    set({
+      nodes: applyNodeChanges(changes, get().nodes),
+      canUndo: _undoStack.length > 0,
+      canRedo: _redoStack.length > 0,
+      isDirty: true,
+    });
   },
 
   onEdgesChange: (changes) => {
-    set({ edges: applyEdgeChanges(changes, get().edges) });
+    pushUndo(get());
+    set({
+      edges: applyEdgeChanges(changes, get().edges),
+      canUndo: _undoStack.length > 0,
+      canRedo: _redoStack.length > 0,
+      isDirty: true,
+    });
   },
 
   onConnect: (connection) => {
+    pushUndo(get());
     const edge = {
       ...connection,
       id: `e-${nanoid(8)}`,
@@ -55,7 +88,12 @@ const useFlowStore = create((set, get) => ({
       animated: true,
       style: { stroke: '#394FB6', strokeWidth: 2 },
     };
-    set({ edges: addEdge(edge, get().edges) });
+    set({
+      edges: addEdge(edge, get().edges),
+      canUndo: _undoStack.length > 0,
+      canRedo: _redoStack.length > 0,
+      isDirty: true,
+    });
   },
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
@@ -66,42 +104,50 @@ const useFlowStore = create((set, get) => ({
   },
 
   addNode: (type, position) => {
+    pushUndo(get());
     const id = `${type}-${nanoid(8)}`;
     const defaults = getNodeDefaults(type);
-    const newNode = {
-      id,
-      type,
-      position,
-      data: { ...defaults },
-    };
-    set({ nodes: [...get().nodes, newNode], selectedNodeId: id });
+    const newNode = { id, type, position, data: { ...defaults } };
+    set({
+      nodes: [...get().nodes, newNode],
+      selectedNodeId: id,
+      canUndo: true,
+      canRedo: false,
+      isDirty: true,
+    });
     return id;
   },
 
   updateNodeData: (nodeId, newData) => {
+    pushUndo(get());
     set({
       nodes: get().nodes.map((n) =>
         n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n
       ),
+      canUndo: true,
+      canRedo: false,
+      isDirty: true,
     });
   },
 
   deleteNode: (nodeId) => {
     const target = get().nodes.find((n) => n.id === nodeId);
     if (!target || target.type === 'startNode') return;
+    pushUndo(get());
     set({
       nodes: get().nodes.filter((n) => n.id !== nodeId),
-      edges: get().edges.filter(
-        (e) => e.source !== nodeId && e.target !== nodeId
-      ),
-      selectedNodeId:
-        get().selectedNodeId === nodeId ? null : get().selectedNodeId,
+      edges: get().edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+      selectedNodeId: get().selectedNodeId === nodeId ? null : get().selectedNodeId,
+      canUndo: true,
+      canRedo: false,
+      isDirty: true,
     });
   },
 
   duplicateNode: (nodeId) => {
     const node = get().nodes.find((n) => n.id === nodeId);
     if (!node || node.type === 'startNode') return;
+    pushUndo(get());
     const id = `${node.type}-${nanoid(8)}`;
     const newNode = {
       ...node,
@@ -110,10 +156,17 @@ const useFlowStore = create((set, get) => ({
       data: { ...node.data },
       selected: false,
     };
-    set({ nodes: [...get().nodes, newNode], selectedNodeId: id });
+    set({
+      nodes: [...get().nodes, newNode],
+      selectedNodeId: id,
+      canUndo: true,
+      canRedo: false,
+      isDirty: true,
+    });
   },
 
   clearCanvas: () => {
+    pushUndo(get());
     set({
       nodes: [defaultStartNode],
       edges: [],
@@ -124,7 +177,53 @@ const useFlowStore = create((set, get) => ({
       validationIssues: [],
       validationNodeCounts: {},
       validationVisible: false,
+      canUndo: true,
+      canRedo: false,
+      isDirty: true,
     });
+  },
+
+  /* ─── Undo / Redo actions ──────────────────────── */
+  undo: () => {
+    if (_undoStack.length === 0) return;
+    _redoStack.push(snapshot(get()));
+    const prev = _undoStack.pop();
+    _skipSnapshot = true;
+    set({
+      nodes: prev.nodes,
+      edges: prev.edges,
+      canUndo: _undoStack.length > 0,
+      canRedo: true,
+      isDirty: true,
+    });
+    _skipSnapshot = false;
+  },
+
+  redo: () => {
+    if (_redoStack.length === 0) return;
+    _undoStack.push(snapshot(get()));
+    const next = _redoStack.pop();
+    _skipSnapshot = true;
+    set({
+      nodes: next.nodes,
+      edges: next.edges,
+      canUndo: true,
+      canRedo: _redoStack.length > 0,
+      isDirty: true,
+    });
+    _skipSnapshot = false;
+  },
+
+  /* ─── Autosave helpers ─────────────────────────── */
+  markClean: () => {
+    const { nodes, edges } = get();
+    _lastSavedJSON = JSON.stringify({ nodes, edges });
+    set({ isDirty: false, lastAutoSaved: Date.now() });
+  },
+
+  isActuallyDirty: () => {
+    const { nodes, edges } = get();
+    return JSON.stringify({ nodes, edges }) !== _lastSavedJSON;
   },
 
   addApiLog: (log) => {
@@ -145,20 +244,30 @@ const useFlowStore = create((set, get) => ({
   },
 
   loadFlowData: (data) => {
+    _undoStack = [];
+    _redoStack = [];
+    const nodes = data.nodes || [defaultStartNode];
+    const edges = data.edges || [];
+    _lastSavedJSON = JSON.stringify({ nodes, edges });
     set({
       projectName: data.projectName || 'Imported Flow',
-      nodes: data.nodes || [defaultStartNode],
-      edges: data.edges || [],
+      nodes,
+      edges,
       selectedNodeId: null,
       validationIssues: [],
       validationNodeCounts: {},
+      canUndo: false,
+      canRedo: false,
+      isDirty: false,
+      lastAutoSaved: null,
     });
   },
 
   applyAutoLayout: () => {
+    pushUndo(get());
     const { nodes, edges } = get();
     const layouted = autoLayoutNodes(nodes, edges, 'LR');
-    set({ nodes: layouted });
+    set({ nodes: layouted, canUndo: true, canRedo: false, isDirty: true });
   },
 
   runValidation: () => {

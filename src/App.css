@@ -3628,3 +3628,281 @@ body {
   border: 1px solid rgba(239,68,68,0.3);
   color: #f87171;
 }
+
+/* ============================================================
+   App Loader — full-screen spinner during hydration
+   ============================================================ */
+.app-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  gap: 16px;
+  font-family: var(--font);
+}
+
+.app-loader p {
+  font-size: 14px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.app-loader-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ============================================================
+   Undo / Redo toolbar buttons
+   ============================================================ */
+.toolbar-undo-redo {
+  display: flex;
+  gap: 2px;
+  margin-left: 8px;
+}
+
+.toolbar-btn.icon-only {
+  padding: 6px 8px;
+  min-width: unset;
+}
+
+.toolbar-btn.icon-only span {
+  display: none;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* ============================================================
+   Autosave badge
+   ============================================================ */
+.autosave-badge {
+  font-size: 11px;
+  color: var(--exotel-green);
+  padding: 3px 8px;
+  background: rgba(77,185,97,0.1);
+  border-radius: 10px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ============================================================
+   Dashboard Search / Filter / Sort bar
+   ============================================================ */
+.dash-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.dash-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+}
+
+.dash-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.dash-search-input {
+  width: 100%;
+  padding: 9px 32px 9px 34px;
+  font-size: 13px;
+  font-family: var(--font);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.dash-search-input:focus {
+  border-color: var(--accent);
+}
+
+.dash-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.dash-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-tertiary);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.dash-search-clear:hover {
+  color: var(--text-primary);
+  background: var(--border-light);
+}
+
+.dash-filter-select {
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: var(--font);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  min-width: 130px;
+}
+
+.dash-filter-select:focus {
+  border-color: var(--accent);
+}
+
+/* ============================================================
+   Environment badges
+   ============================================================ */
+.dash-card-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.env-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.env-badge.env-uat {
+  background: rgba(234,179,8,0.15);
+  color: #eab308;
+}
+
+.env-badge.env-prod {
+  background: rgba(77,185,97,0.15);
+  color: #4DB961;
+}
+
+.dash-card-prod-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--exotel-green);
+  margin-top: 2px;
+}
+
+.dash-card-btn.push-prod {
+  color: var(--exotel-green);
+  border-color: rgba(77,185,97,0.3);
+}
+
+.dash-card-btn.push-prod:hover {
+  background: rgba(77,185,97,0.15);
+  border-color: var(--exotel-green);
+}
+
+.dash-card-btn.revert-uat {
+  color: #eab308;
+  border-color: rgba(234,179,8,0.3);
+}
+
+.dash-card-btn.revert-uat:hover {
+  background: rgba(234,179,8,0.15);
+  border-color: #eab308;
+}
+
+/* ============================================================
+   Skeleton UI — animated loading cards
+   ============================================================ */
+.dash-card.skeleton {
+  pointer-events: none;
+  animation: none;
+}
+
+.skel-block {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border) 50%, var(--bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skel-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+}
+
+.skel-badge {
+  width: 80px;
+  height: 20px;
+}
+
+.skel-title {
+  width: 70%;
+  height: 18px;
+  margin: 10px 0 8px;
+}
+
+.skel-meta {
+  width: 60px;
+  height: 14px;
+}
+
+.skel-btn {
+  width: 60px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+
+.skel-btn-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

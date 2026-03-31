@@ -1,7 +1,7 @@
 /**
- * @file App.jsx — application shell: login, dashboard, admin user management, and the flow editor.
+ * @file App.jsx — application shell: login, dashboard, admin, and the flow editor with autosave.
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ReactFlowProvider } from 'reactflow';
 import useAuthStore from './store/authStore';
 import useProjectsStore from './store/projectsStore';
@@ -18,19 +18,19 @@ import ValidationPanel from './components/ValidationPanel';
 import IvrTester from './components/IvrTester';
 import TemplateGallery from './components/TemplateGallery';
 
+const AUTOSAVE_INTERVAL_MS = 30_000;
+
 /**
- * Full-screen flow editor with toolbar, sidebar, validation, and optional mock API / tester / templates.
- *
- * @param {object} props
- * @param {string | null} props.projectId - Active project id for autosave, or null
- * @param {() => void} props.onBack - Returns to the dashboard and persists the current flow
+ * Full-screen flow editor with autosave every 30 seconds.
  */
 function Editor({ projectId, onBack }) {
   const [apiPanelOpen, setApiPanelOpen] = useState(false);
   const [testerOpen, setTesterOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const simulationActive = useFlowStore((s) => s.simulationActive);
+  const isDirty = useFlowStore((s) => s.isDirty);
   const updateProject = useProjectsStore((s) => s.updateProject);
+  const autosaveRef = useRef(null);
 
   const handleSimulate = useCallback(() => {
     if (simulationActive) {
@@ -44,7 +44,34 @@ function Editor({ projectId, onBack }) {
     if (!projectId) return;
     const { nodes, edges, projectName } = useFlowStore.getState();
     updateProject(projectId, { name: projectName, nodes, edges });
+    useFlowStore.getState().markClean();
   }, [projectId, updateProject]);
+
+  /* Autosave: runs every 30s if dirty */
+  useEffect(() => {
+    autosaveRef.current = setInterval(() => {
+      if (!projectId) return;
+      const store = useFlowStore.getState();
+      if (store.isActuallyDirty()) {
+        const { nodes, edges, projectName } = store;
+        updateProject(projectId, { name: projectName, nodes, edges });
+        store.markClean();
+      }
+    }, AUTOSAVE_INTERVAL_MS);
+    return () => clearInterval(autosaveRef.current);
+  }, [projectId, updateProject]);
+
+  /* Save on unmount (navigate away) */
+  useEffect(() => {
+    return () => {
+      if (!projectId) return;
+      const store = useFlowStore.getState();
+      if (store.isActuallyDirty()) {
+        const { nodes, edges, projectName } = store;
+        useProjectsStore.getState().updateProject(projectId, { name: projectName, nodes, edges });
+      }
+    };
+  }, [projectId]);
 
   return (
     <ReactFlowProvider>
@@ -73,25 +100,32 @@ function Editor({ projectId, onBack }) {
   );
 }
 
-/** @typedef {'dashboard' | 'editor' | 'admin'} AppPage */
-
-/**
- * Root app: login gate, then dashboard, admin users, or the IVR editor.
- */
 export default function App() {
   const user = useAuthStore((s) => s.user);
-  /** @type {[AppPage, React.Dispatch<React.SetStateAction<AppPage>>]} */
   const [page, setPage] = useState('dashboard');
   const [currentProjectId, setCurrentProjectId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  /**
-   * Normalizes `page` when a non-admin ends up with `admin` (e.g. stale state).
-   */
+  /* Simulated app initialization (hydrate stores) */
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (page === 'admin' && user?.role !== 'admin') {
       setPage('dashboard');
     }
   }, [page, user]);
+
+  if (loading) {
+    return (
+      <div className="app-loader">
+        <div className="app-loader-spinner" />
+        <p>Loading Exotel IVR Flow Builder...</p>
+      </div>
+    );
+  }
 
   if (!user) return <LoginPage />;
 

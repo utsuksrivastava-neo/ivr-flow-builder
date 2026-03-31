@@ -1,33 +1,24 @@
 /**
- * projectsStore.js — Zustand store for IVR project management.
+ * projectsStore.js — Zustand store for IVR project management with environment support.
  *
- * Each project stores: id, name, timestamps, and the React Flow
- * node/edge arrays that represent the IVR graph. All data is
- * persisted to localStorage under the key "ivr-projects".
+ * Each project stores: id, name, timestamps, environment status (UAT/Prod),
+ * and the React Flow node/edge arrays. All data persisted to localStorage.
  */
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 
-/** Loads the project list from localStorage (or empty array on error). */
 function load() {
   try { return JSON.parse(localStorage.getItem('ivr-projects') || '[]'); }
   catch { return []; }
 }
 
-/** Writes the full project list to localStorage. */
 function persist(projects) {
   localStorage.setItem('ivr-projects', JSON.stringify(projects));
 }
 
 const useProjectsStore = create((set, get) => ({
-  /** Array of saved projects, most recent first. */
   projects: load(),
 
-  /**
-   * Creates a new project with a unique nanoid and prepends it to the list.
-   * @param {{ name?: string; nodes?: object[]; edges?: object[] }} data
-   * @returns {string} The new project's ID
-   */
   createProject: (data) => {
     const id = nanoid(10);
     const now = Date.now();
@@ -38,6 +29,9 @@ const useProjectsStore = create((set, get) => ({
       updatedAt: now,
       nodes: data.nodes || [],
       edges: data.edges || [],
+      environment: 'uat',
+      prodSnapshot: null,
+      prodPushedAt: null,
     };
     const updated = [project, ...get().projects];
     persist(updated);
@@ -45,11 +39,6 @@ const useProjectsStore = create((set, get) => ({
     return id;
   },
 
-  /**
-   * Merges new fields into an existing project and bumps `updatedAt`.
-   * @param {string} id - Project ID
-   * @param {object} data - Fields to merge
-   */
   updateProject: (id, data) => {
     const updated = get().projects.map((p) =>
       p.id === id ? { ...p, ...data, updatedAt: Date.now() } : p
@@ -58,22 +47,47 @@ const useProjectsStore = create((set, get) => ({
     set({ projects: updated });
   },
 
-  /**
-   * Permanently removes a project by ID.
-   * @param {string} id
-   */
   deleteProject: (id) => {
     const updated = get().projects.filter((p) => p.id !== id);
     persist(updated);
     set({ projects: updated });
   },
 
-  /**
-   * Looks up a single project.
-   * @param {string} id
-   * @returns {object | undefined}
-   */
   getProject: (id) => get().projects.find((p) => p.id === id),
+
+  /**
+   * Promotes the current UAT flow to Production by snapshotting its nodes/edges.
+   * The project's environment becomes 'production' and a frozen snapshot is saved.
+   */
+  pushToProduction: (id) => {
+    const project = get().projects.find((p) => p.id === id);
+    if (!project) return { success: false, error: 'Project not found.' };
+    const snap = {
+      nodes: JSON.parse(JSON.stringify(project.nodes)),
+      edges: JSON.parse(JSON.stringify(project.edges)),
+      pushedAt: Date.now(),
+      pushedName: project.name,
+    };
+    const updated = get().projects.map((p) =>
+      p.id === id
+        ? { ...p, environment: 'production', prodSnapshot: snap, prodPushedAt: Date.now(), updatedAt: Date.now() }
+        : p
+    );
+    persist(updated);
+    set({ projects: updated });
+    return { success: true };
+  },
+
+  /**
+   * Reverts a project back to UAT (keeps the prod snapshot for reference).
+   */
+  revertToUat: (id) => {
+    const updated = get().projects.map((p) =>
+      p.id === id ? { ...p, environment: 'uat', updatedAt: Date.now() } : p
+    );
+    persist(updated);
+    set({ projects: updated });
+  },
 }));
 
 export default useProjectsStore;

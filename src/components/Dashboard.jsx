@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import useAuthStore from '../store/authStore';
 import useProjectsStore from '../store/projectsStore';
 import useFlowStore from '../store/flowStore';
@@ -16,15 +16,14 @@ import {
   Copy,
   X,
   Shield,
+  Search,
+  ArrowUpDown,
+  Rocket,
+  FlaskConical,
+  CheckCircle2,
 } from 'lucide-react';
 import ExotelLogo from './ExotelLogo';
 
-/**
- * Formats a timestamp as a short relative time string for project cards.
- *
- * @param {number} ts - Unix timestamp in milliseconds
- * @returns {string} Human-readable relative time (e.g. "5m ago", "2d ago")
- */
 function timeAgo(ts) {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
@@ -37,39 +36,89 @@ function timeAgo(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
-/**
- * Dashboard: lists saved IVR projects and entry points for new flows (blank dialog, templates).
- *
- * @param {object} props
- * @param {(projectId: string) => void} props.onOpenProject - Navigates to the editor with the given project id
- * @param {(() => void) | undefined} props.onAdminPage - Opens the user management screen (admins only)
- */
+/* Skeleton card shown while projects are loading */
+function SkeletonCard() {
+  return (
+    <div className="dash-card skeleton">
+      <div className="dash-card-top">
+        <div className="skel-block skel-icon" />
+        <div className="skel-block skel-badge" />
+      </div>
+      <div className="skel-block skel-title" />
+      <div className="dash-card-meta">
+        <div className="skel-block skel-meta" />
+        <div className="skel-block skel-meta" />
+      </div>
+      <div className="dash-card-actions">
+        <div className="skel-block skel-btn" />
+        <div className="skel-block skel-btn-sm" />
+        <div className="skel-block skel-btn-sm" />
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard({ onOpenProject, onAdminPage }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const projects = useProjectsStore((s) => s.projects);
   const createProject = useProjectsStore((s) => s.createProject);
   const deleteProject = useProjectsStore((s) => s.deleteProject);
+  const pushToProduction = useProjectsStore((s) => s.pushToProduction);
+  const revertToUat = useProjectsStore((s) => s.revertToUat);
   const loadFlowData = useFlowStore((s) => s.loadFlowData);
   const clearCanvas = useFlowStore((s) => s.clearCanvas);
 
   const [galleryOpen, setGalleryOpen] = useState(false);
-  /** When true, the Create New IVR modal is shown. */
   const [showNewDialog, setShowNewDialog] = useState(false);
-  /** Start node `callDirection`: inbound-only vs inbound+outbound. */
   const [newIvrType, setNewIvrType] = useState('both');
   const [newIvrName, setNewIvrName] = useState('My IVR Flow');
 
-  /**
-   * Opens the template gallery; on close, persists the loaded flow as a project if it was changed.
-   */
-  const handleTemplateSelect = () => {
-    setGalleryOpen(true);
-  };
+  /* Search, filter, sort state */
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterEnv, setFilterEnv] = useState('all');
+  const [sortBy, setSortBy] = useState('updated');
 
-  /**
-   * After the gallery closes, creates a project if the user applied a template (non-default graph/name).
-   */
+  /* Simulate loading for skeleton */
+  const [isLoading, setIsLoading] = useState(true);
+  React.useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  /* Derived filtered + sorted list */
+  const filteredProjects = useMemo(() => {
+    let list = [...projects];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((p) => p.name.toLowerCase().includes(q));
+    }
+
+    if (filterType !== 'all') {
+      list = list.filter((p) => {
+        const start = p.nodes?.find((n) => n.type === 'startNode');
+        const dir = start?.data?.callDirection || 'both';
+        return dir === filterType;
+      });
+    }
+
+    if (filterEnv !== 'all') {
+      list = list.filter((p) => (p.environment || 'uat') === filterEnv);
+    }
+
+    list.sort((a, b) => {
+      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      if (sortBy === 'created') return b.createdAt - a.createdAt;
+      return b.updatedAt - a.updatedAt;
+    });
+
+    return list;
+  }, [projects, searchQuery, filterType, filterEnv, sortBy]);
+
+  const handleTemplateSelect = () => setGalleryOpen(true);
+
   const handleGalleryClose = () => {
     setGalleryOpen(false);
     const state = useFlowStore.getState();
@@ -83,88 +132,39 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
     }
   };
 
-  /**
-   * Resets dialog fields and shows the new-IVR modal.
-   */
   const openNewIvrDialog = () => {
     setNewIvrName('My IVR Flow');
     setNewIvrType('both');
     setShowNewDialog(true);
   };
 
-  /**
-   * Closes the new-IVR modal without creating a project.
-   */
-  const closeNewIvrDialog = () => {
-    setShowNewDialog(false);
-  };
+  const closeNewIvrDialog = () => setShowNewDialog(false);
 
-  /**
-   * Clears the canvas, applies start-node direction from the dialog, persists a new project, and opens it.
-   */
   const handleCreateIvrFromDialog = () => {
     const name = newIvrName.trim() || 'My IVR Flow';
     clearCanvas();
     const state = useFlowStore.getState();
     const updatedNodes = state.nodes.map((n) =>
       n.type === 'startNode'
-        ? {
-            ...n,
-            data: {
-              ...n.data,
-              callDirection: newIvrType,
-              label: newIvrType === 'inbound' ? 'Incoming Call' : 'Inbound + Outbound Call',
-            },
-          }
+        ? { ...n, data: { ...n.data, callDirection: newIvrType, label: newIvrType === 'inbound' ? 'Incoming Call' : 'Inbound + Outbound Call' } }
         : n
     );
-    loadFlowData({
-      projectName: name,
-      nodes: updatedNodes,
-      edges: state.edges,
-    });
-    const id = createProject({
-      name,
-      nodes: updatedNodes,
-      edges: state.edges,
-    });
+    loadFlowData({ projectName: name, nodes: updatedNodes, edges: state.edges });
+    const id = createProject({ name, nodes: updatedNodes, edges: state.edges });
     setShowNewDialog(false);
     onOpenProject(id);
   };
 
-  /**
-   * Loads project flow data into the store and navigates to the editor.
-   *
-   * @param {{ id: string; name: string; nodes: unknown[]; edges: unknown[] }} project - Saved project from the list
-   */
   const handleOpenProject = (project) => {
-    loadFlowData({
-      projectName: project.name,
-      nodes: project.nodes,
-      edges: project.edges,
-    });
+    loadFlowData({ projectName: project.name, nodes: project.nodes, edges: project.edges });
     onOpenProject(project.id);
   };
 
-  /**
-   * Deletes a project after confirmation.
-   *
-   * @param {React.MouseEvent} e - Click event (propagation stopped so the card does not open)
-   * @param {string} id - Project id
-   */
   const handleDelete = (e, id) => {
     e.stopPropagation();
-    if (confirm('Delete this IVR project? This cannot be undone.')) {
-      deleteProject(id);
-    }
+    if (confirm('Delete this IVR project? This cannot be undone.')) deleteProject(id);
   };
 
-  /**
-   * Duplicates a project as a new entry in the list.
-   *
-   * @param {React.MouseEvent} e - Click event
-   * @param {{ name: string; nodes: unknown[]; edges: unknown[] }} project - Source project
-   */
   const handleDuplicate = (e, project) => {
     e.stopPropagation();
     createProject({
@@ -174,27 +174,31 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
     });
   };
 
-  /**
-   * Reads `callDirection` from the flow's start node for dashboard badges.
-   *
-   * @param {unknown[] | undefined} nodes - Flow nodes
-   * @returns {'inbound' | 'both' | 'outbound'}
-   */
+  const handlePushToProd = (e, id) => {
+    e.stopPropagation();
+    if (!confirm('Push this IVR to Production? The current flow will be frozen as the live version.')) return;
+    pushToProduction(id);
+  };
+
+  const handleRevertToUat = (e, id) => {
+    e.stopPropagation();
+    revertToUat(id);
+  };
+
   const getStartDirection = (nodes) => {
     const start = nodes?.find((n) => n.type === 'startNode');
     return start?.data?.callDirection || 'outbound';
   };
 
-  /**
-   * Badge label for a project's call direction.
-   *
-   * @param {'inbound' | 'both' | 'outbound'} dir
-   * @returns {string}
-   */
   const directionBadgeLabel = (dir) => {
     if (dir === 'inbound') return 'Inbound';
     if (dir === 'both') return 'Inbound + Outbound';
     return 'Outbound';
+  };
+
+  const envBadge = (env) => {
+    if (env === 'production') return { label: 'Production', cls: 'env-prod', icon: <Rocket size={10} /> };
+    return { label: 'UAT', cls: 'env-uat', icon: <FlaskConical size={10} /> };
   };
 
   return (
@@ -240,7 +244,54 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
           </div>
         </div>
 
-        {projects.length === 0 ? (
+        {/* Search / Filter / Sort bar */}
+        <div className="dash-filters">
+          <div className="dash-search-wrap">
+            <Search size={14} className="dash-search-icon" />
+            <input
+              type="text"
+              className="dash-search-input"
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="dash-search-clear" onClick={() => setSearchQuery('')}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+          <select className="dash-filter-select" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+            <option value="all">All Types</option>
+            <option value="inbound">Inbound Only</option>
+            <option value="both">Inbound + Outbound</option>
+          </select>
+          <select className="dash-filter-select" value={filterEnv} onChange={(e) => setFilterEnv(e.target.value)}>
+            <option value="all">All Environments</option>
+            <option value="uat">UAT</option>
+            <option value="production">Production</option>
+          </select>
+          <select className="dash-filter-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="updated">Last Modified</option>
+            <option value="created">Date Created</option>
+            <option value="name">Name (A-Z)</option>
+          </select>
+        </div>
+
+        {isLoading ? (
+          <div className="dash-grid">
+            {[1, 2, 3, 4, 5, 6].map((i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : filteredProjects.length === 0 && projects.length > 0 ? (
+          <div className="dash-empty">
+            <Search size={48} className="dash-empty-icon" />
+            <h3>No matching projects</h3>
+            <p>Try adjusting your search or filters.</p>
+            <button className="toolbar-btn" onClick={() => { setSearchQuery(''); setFilterType('all'); setFilterEnv('all'); }}>
+              Clear Filters
+            </button>
+          </div>
+        ) : filteredProjects.length === 0 ? (
           <div className="dash-empty">
             <Layers size={48} className="dash-empty-icon" />
             <h3>No projects yet</h3>
@@ -256,8 +307,9 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
           </div>
         ) : (
           <div className="dash-grid">
-            {projects.map((p) => {
+            {filteredProjects.map((p) => {
               const dir = getStartDirection(p.nodes);
+              const env = envBadge(p.environment || 'uat');
               return (
                 <div key={p.id} className="dash-card" onClick={() => handleOpenProject(p)}>
                   <div className="dash-card-top">
@@ -273,21 +325,34 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
                         <PhoneOutgoing size={20} />
                       )}
                     </div>
-                    <span className={`tpl-card-badge ${dir}`}>{directionBadgeLabel(dir)}</span>
+                    <div className="dash-card-badges">
+                      <span className={`tpl-card-badge ${dir}`}>{directionBadgeLabel(dir)}</span>
+                      <span className={`env-badge ${env.cls}`}>{env.icon} {env.label}</span>
+                    </div>
                   </div>
                   <h3 className="dash-card-name">{p.name}</h3>
                   <div className="dash-card-meta">
-                    <span>
-                      <Layers size={12} /> {p.nodes?.length || 0} nodes
-                    </span>
-                    <span>
-                      <Clock size={12} /> {timeAgo(p.updatedAt)}
-                    </span>
+                    <span><Layers size={12} /> {p.nodes?.length || 0} nodes</span>
+                    <span><Clock size={12} /> {timeAgo(p.updatedAt)}</span>
                   </div>
+                  {p.prodPushedAt && (
+                    <div className="dash-card-prod-info">
+                      <CheckCircle2 size={11} /> Prod pushed {timeAgo(p.prodPushedAt)}
+                    </div>
+                  )}
                   <div className="dash-card-actions">
                     <button className="dash-card-btn open" onClick={() => handleOpenProject(p)}>
                       <FolderOpen size={13} /> Open
                     </button>
+                    {(p.environment || 'uat') === 'uat' ? (
+                      <button className="dash-card-btn push-prod" onClick={(e) => handlePushToProd(e, p.id)} title="Push to Production">
+                        <Rocket size={13} />
+                      </button>
+                    ) : (
+                      <button className="dash-card-btn revert-uat" onClick={(e) => handleRevertToUat(e, p.id)} title="Revert to UAT">
+                        <FlaskConical size={13} />
+                      </button>
+                    )}
                     <button className="dash-card-btn" onClick={(e) => handleDuplicate(e, p)} title="Duplicate">
                       <Copy size={13} />
                     </button>
@@ -306,13 +371,7 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
 
       {showNewDialog && (
         <div className="dash-dialog-overlay" role="presentation" onClick={closeNewIvrDialog}>
-          <div
-            className="dash-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="new-ivr-dialog-title"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="dash-dialog" role="dialog" aria-modal="true" aria-labelledby="new-ivr-dialog-title" onClick={(e) => e.stopPropagation()}>
             <div className="dash-dialog-header">
               <h2 id="new-ivr-dialog-title">Create New IVR</h2>
               <button type="button" className="dash-dialog-close" onClick={closeNewIvrDialog} aria-label="Close">
@@ -320,51 +379,28 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
               </button>
             </div>
             <div className="dash-dialog-body">
-              <label className="dash-dialog-label" htmlFor="new-ivr-name">
-                Project name
-              </label>
-              <input
-                id="new-ivr-name"
-                type="text"
-                className="dash-dialog-input"
-                value={newIvrName}
-                onChange={(e) => setNewIvrName(e.target.value)}
-                placeholder="My IVR Flow"
-              />
+              <label className="dash-dialog-label" htmlFor="new-ivr-name">Project name</label>
+              <input id="new-ivr-name" type="text" className="dash-dialog-input" value={newIvrName} onChange={(e) => setNewIvrName(e.target.value)} placeholder="My IVR Flow" />
               <p className="dash-dialog-hint">IVR type</p>
               <div className="dash-dialog-options">
-                <button
-                  type="button"
-                  className={`dash-dialog-option ${newIvrType === 'inbound' ? 'selected' : ''}`}
-                  onClick={() => setNewIvrType('inbound')}
-                >
+                <button type="button" className={`dash-dialog-option ${newIvrType === 'inbound' ? 'selected' : ''}`} onClick={() => setNewIvrType('inbound')}>
                   <PhoneIncoming size={22} className="dash-dialog-option-icon" />
                   <span className="dash-dialog-option-title">Inbound Only</span>
                   <span className="dash-dialog-option-desc">For IVRs that only receive incoming calls</span>
                 </button>
-                <button
-                  type="button"
-                  className={`dash-dialog-option ${newIvrType === 'both' ? 'selected' : ''}`}
-                  onClick={() => setNewIvrType('both')}
-                >
+                <button type="button" className={`dash-dialog-option ${newIvrType === 'both' ? 'selected' : ''}`} onClick={() => setNewIvrType('both')}>
                   <span className="dash-dialog-option-icons-row">
                     <PhoneIncoming size={20} />
                     <PhoneOutgoing size={20} />
                   </span>
                   <span className="dash-dialog-option-title">Inbound + Outbound</span>
-                  <span className="dash-dialog-option-desc">
-                    For IVRs that can both receive and make calls (e.g., outbound bots that callers can also call)
-                  </span>
+                  <span className="dash-dialog-option-desc">For IVRs that can both receive and make calls</span>
                 </button>
               </div>
             </div>
             <div className="dash-dialog-footer">
-              <button type="button" className="toolbar-btn" onClick={closeNewIvrDialog}>
-                Cancel
-              </button>
-              <button type="button" className="toolbar-btn primary" onClick={handleCreateIvrFromDialog}>
-                Create
-              </button>
+              <button type="button" className="toolbar-btn" onClick={closeNewIvrDialog}>Cancel</button>
+              <button type="button" className="toolbar-btn primary" onClick={handleCreateIvrFromDialog}>Create</button>
             </div>
           </div>
         </div>

@@ -4,19 +4,27 @@ import { nanoid } from 'nanoid';
 import { autoLayoutNodes } from '../utils/layoutUtils';
 import { validateFlow, getIssueCountsForNodes } from '../utils/validationUtils';
 
+/**
+ * Initial canvas node: the flow entry point (start node).
+ * Shipped with every new project and restored by {@link clearCanvas} when the canvas is reset.
+ */
 const defaultStartNode = {
   id: 'start-1',
   type: 'startNode',
   position: { x: 80, y: 300 },
   data: {
-    label: 'Outbound Call',
-    callDirection: 'outbound',
+    label: 'Inbound + Outbound Call',
+    callDirection: 'both',
     contactUri: '09163816621',
     exophone: '08030752400',
     eventEndpoint: 'grpc://127.0.0.1:9001',
   },
 };
 
+/**
+ * Zustand store for the IVR flow editor: nodes, edges, selection, validation, simulation, and API logs.
+ * React Flow drives the graph; this store is the single source of truth for persisted flow state.
+ */
 const useFlowStore = create((set, get) => ({
   nodes: [defaultStartNode],
   edges: [],
@@ -168,12 +176,19 @@ const useFlowStore = create((set, get) => ({
   setValidationVisible: (v) => set({ validationVisible: v }),
 }));
 
+/**
+ * Default `data` payload for each node type when {@link useFlowStore.addNode} creates a new node.
+ * Keeps backward compatibility: legacy types (e.g. recordNode, apiCallNode) stay unchanged aside from noted tweaks.
+ *
+ * @param {string} type - React Flow node `type` string
+ * @returns {Record<string, unknown>} Default fields merged into `node.data`
+ */
 function getNodeDefaults(type) {
   switch (type) {
     case 'startNode':
       return {
-        label: 'Outbound Call',
-        callDirection: 'outbound',
+        label: 'Inbound + Outbound Call',
+        callDirection: 'both',
         contactUri: '09163816621',
         exophone: '08030752400',
         eventEndpoint: 'grpc://127.0.0.1:9001',
@@ -212,6 +227,12 @@ function getNodeDefaults(type) {
         ttsLanguage: 'en',
         loop: 1,
       };
+    /** Plain text message node (no TTS configuration). */
+    case 'messageNode':
+      return {
+        label: 'Message',
+        message: 'Hello! Thank you for calling.',
+      };
     case 'voicebotNode':
       return {
         label: 'Voicebot',
@@ -239,6 +260,22 @@ function getNodeDefaults(type) {
         storageType: 's3',
         storageUrl: '',
       };
+    /** Explicit "start recording" step (same shape intent as record defaults, distinct node type). */
+    case 'startRecordNode':
+      return {
+        label: 'Start Recording',
+        direction: 'both',
+        format: 'mp3',
+        bitrate: '8',
+        channel: 'mono',
+        storageType: 's3',
+        storageUrl: '',
+      };
+    /** Stops an active recording; no extra config beyond label. */
+    case 'stopRecordNode':
+      return {
+        label: 'Stop Recording',
+      };
     case 'hangupNode':
       return {
         label: 'Hang Up',
@@ -246,7 +283,7 @@ function getNodeDefaults(type) {
     case 'gatherNode':
       return {
         label: 'Gather Digits',
-        numDigits: 1,
+        numDigits: 5,
         timeout: 10,
         finishOnKey: '#',
         prompt: '',
@@ -264,6 +301,28 @@ function getNodeDefaults(type) {
         callbackUrl: '',
         responseVariable: 'api_response',
         successCondition: '2xx',
+      };
+    /** Synchronous HTTP call: blocks until response; uses timeout and success condition. */
+    case 'syncApiNode':
+      return {
+        label: 'Sync API',
+        method: 'POST',
+        url: 'https://api.example.com/check',
+        headers: '{"Content-Type": "application/json"}',
+        body: '{"phone": "{{caller_number}}"}',
+        timeout: 10,
+        responseVariable: 'api_response',
+        successCondition: '2xx',
+      };
+    /** Fire-and-forget HTTP call with callback URL for async completion. */
+    case 'asyncApiNode':
+      return {
+        label: 'Async API',
+        method: 'POST',
+        url: 'https://api.example.com/webhook',
+        headers: '{"Content-Type": "application/json"}',
+        body: '{}',
+        callbackUrl: 'https://your-server.com/callback',
       };
     case 'conditionNode':
       return {

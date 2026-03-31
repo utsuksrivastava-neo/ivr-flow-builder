@@ -3,6 +3,9 @@ import useFlowStore from '../store/flowStore';
 import { nodeColors, nodeIcons } from './CustomNodes';
 import { Trash2, Copy, Plus, X, Settings } from 'lucide-react';
 
+// -----------------------------------------------------------------------------
+// Shared field shell: label + arbitrary children (inputs, textareas, etc.)
+// -----------------------------------------------------------------------------
 function Field({ label, children }) {
   return (
     <div className="config-field">
@@ -12,6 +15,9 @@ function Field({ label, children }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Basic text input — single-line strings for URLs, labels, etc.
+// -----------------------------------------------------------------------------
 function TextInput({ value, onChange, placeholder, ...props }) {
   return (
     <input
@@ -25,6 +31,9 @@ function TextInput({ value, onChange, placeholder, ...props }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Numeric input with optional min/max for timeouts, loops, etc.
+// -----------------------------------------------------------------------------
 function NumberInput({ value, onChange, min, max, ...props }) {
   return (
     <input
@@ -39,6 +48,9 @@ function NumberInput({ value, onChange, min, max, ...props }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Dropdown — options are { value, label } pairs
+// -----------------------------------------------------------------------------
 function SelectInput({ value, onChange, options }) {
   return (
     <select className="config-input config-select" value={value || ''} onChange={(e) => onChange(e.target.value)}>
@@ -51,6 +63,9 @@ function SelectInput({ value, onChange, options }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Multi-line text for prompts, JSON, messages
+// -----------------------------------------------------------------------------
 function TextArea({ value, onChange, placeholder, rows = 3 }) {
   return (
     <textarea
@@ -63,31 +78,45 @@ function TextArea({ value, onChange, placeholder, rows = 3 }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Start node — entry point: call direction, optional outbound number, exophone, gRPC
+// Legacy `outbound` is treated as `both` for the selector (outbound leg needs a number).
+// -----------------------------------------------------------------------------
 function StartConfig({ data, update }) {
-  const isInbound = data.callDirection === 'inbound';
+  const raw = data.callDirection;
+  const callDirection = raw === 'outbound' ? 'both' : raw || 'inbound';
+  const isInboundOnly = callDirection === 'inbound';
+  const showContactUri = callDirection === 'both' || raw === 'outbound';
+
   return (
     <>
       <Field label="Call Direction">
         <SelectInput
-          value={data.callDirection || 'outbound'}
+          value={callDirection}
           onChange={(v) =>
             update({
               callDirection: v,
-              label: v === 'inbound' ? 'Incoming Call' : 'Outbound Call',
+              label: v === 'inbound' ? 'Incoming Call' : 'Inbound + Outbound Call',
             })
           }
           options={[
-            { value: 'outbound', label: '📤 Outbound' },
-            { value: 'inbound', label: '📥 Inbound' },
+            { value: 'inbound', label: '📥 Inbound Only' },
+            { value: 'both', label: '📞 Inbound + Outbound' },
           ]}
         />
       </Field>
-      {!isInbound && (
+      {showContactUri && (
         <Field label="Contact URI (Number to call)">
           <TextInput value={data.contactUri} onChange={(v) => update({ contactUri: v })} placeholder="09163816621" />
         </Field>
       )}
-      <Field label={isInbound ? 'Exophone (Virtual Number)' : 'Exophone (Caller ID)'}>
+      <Field
+        label={
+          isInboundOnly
+            ? 'Exophone (Virtual Number)'
+            : 'Exophone (Virtual Number / Caller ID)'
+        }
+      >
         <TextInput value={data.exophone} onChange={(v) => update({ exophone: v })} placeholder="08030752400" />
       </Field>
       <Field label="Event Endpoint (gRPC)">
@@ -97,6 +126,9 @@ function StartConfig({ data, update }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// IVR menu — TTS or audio prompt, DTMF options, timeouts
+// -----------------------------------------------------------------------------
 function MenuConfig({ data, update }) {
   const addOption = () => {
     const nextKey = String((data.options?.length || 0) + 1);
@@ -217,6 +249,9 @@ function MenuConfig({ data, update }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Play audio from URL (optional HTTPS auth)
+// -----------------------------------------------------------------------------
 function PlayConfig({ data, update }) {
   return (
     <>
@@ -236,6 +271,9 @@ function PlayConfig({ data, update }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Say / TTS — spoken message with engine and voice settings
+// -----------------------------------------------------------------------------
 function SayConfig({ data, update }) {
   return (
     <>
@@ -276,6 +314,9 @@ function SayConfig({ data, update }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Voice bot — WebSocket streaming (bidirectional or transcription)
+// -----------------------------------------------------------------------------
 function VoicebotConfig({ data, update }) {
   return (
     <>
@@ -309,6 +350,9 @@ function VoicebotConfig({ data, update }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Transfer — bridge call to another URI / network
+// -----------------------------------------------------------------------------
 function TransferConfig({ data, update }) {
   return (
     <>
@@ -338,6 +382,9 @@ function TransferConfig({ data, update }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Record — in-call recording (format, storage, etc.)
+// -----------------------------------------------------------------------------
 function RecordConfig({ data, update }) {
   return (
     <>
@@ -398,6 +445,219 @@ function RecordConfig({ data, update }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Start Record node — same recording options as the generic Record node
+// -----------------------------------------------------------------------------
+function StartRecordConfig({ data, update }) {
+  return (
+    <>
+      <Field label="Direction">
+        <SelectInput
+          value={data.direction}
+          onChange={(v) => update({ direction: v })}
+          options={[
+            { value: 'both', label: 'Both' },
+            { value: 'in', label: 'Inbound Only' },
+            { value: 'out', label: 'Outbound Only' },
+          ]}
+        />
+      </Field>
+      <Field label="Format">
+        <SelectInput
+          value={data.format}
+          onChange={(v) => update({ format: v })}
+          options={[
+            { value: 'mp3', label: 'MP3' },
+            { value: 'wav', label: 'WAV' },
+          ]}
+        />
+      </Field>
+      <Field label="Bitrate">
+        <SelectInput
+          value={data.bitrate}
+          onChange={(v) => update({ bitrate: v })}
+          options={['8', '24', '32', '64', '128'].map((b) => ({ value: b, label: `${b} kbps` }))}
+        />
+      </Field>
+      <Field label="Channel">
+        <SelectInput
+          value={data.channel}
+          onChange={(v) => update({ channel: v })}
+          options={[
+            { value: 'mono', label: 'Mono' },
+            { value: 'stereo', label: 'Stereo' },
+          ]}
+        />
+      </Field>
+      <Field label="Storage Type">
+        <SelectInput
+          value={data.storageType}
+          onChange={(v) => update({ storageType: v })}
+          options={[
+            { value: 's3', label: 'Exotel S3' },
+            { value: 'https', label: 'Custom HTTPS' },
+          ]}
+        />
+      </Field>
+      {data.storageType === 'https' && (
+        <Field label="Storage URL">
+          <TextInput value={data.storageUrl} onChange={(v) => update({ storageUrl: v })} placeholder="https://upload.example.com" />
+        </Field>
+      )}
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Message node — plain text played to the caller (TTS or similar downstream)
+// -----------------------------------------------------------------------------
+function MessageConfig({ data, update }) {
+  return (
+    <>
+      <Field label="Message">
+        <TextArea
+          value={data.message}
+          onChange={(v) => update({ message: v })}
+          placeholder="Enter message to play to caller..."
+          rows={4}
+        />
+      </Field>
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Stop Record node — no editable fields; informational copy only
+// -----------------------------------------------------------------------------
+function StopRecordConfig() {
+  return (
+    <div className="config-empty-state">
+      <p>This node stops any active recording on the call. No configuration required.</p>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Sync API node — blocking HTTP call with timeout, variable binding, success rule
+// -----------------------------------------------------------------------------
+function SyncApiConfig({ data, update }) {
+  const method = data.method || 'POST';
+  const showBody = method === 'POST' || method === 'PUT' || method === 'PATCH';
+
+  return (
+    <>
+      <Field label="HTTP Method">
+        <SelectInput
+          value={method}
+          onChange={(v) => update({ method: v })}
+          options={[
+            { value: 'GET', label: 'GET' },
+            { value: 'POST', label: 'POST' },
+            { value: 'PUT', label: 'PUT' },
+            { value: 'DELETE', label: 'DELETE' },
+            { value: 'PATCH', label: 'PATCH' },
+          ]}
+        />
+      </Field>
+      <Field label="URL">
+        <TextInput value={data.url} onChange={(v) => update({ url: v })} placeholder="https://api.example.com/endpoint" />
+      </Field>
+      <Field label="Headers JSON">
+        <TextArea
+          value={data.headers}
+          onChange={(v) => update({ headers: v })}
+          placeholder='{"Authorization": "Bearer ..."}'
+          rows={3}
+        />
+      </Field>
+      {showBody && (
+        <Field label="Request Body JSON">
+          <TextArea
+            value={data.body}
+            onChange={(v) => update({ body: v })}
+            placeholder='{"key": "value"}'
+            rows={4}
+          />
+        </Field>
+      )}
+      <Field label="Timeout in seconds">
+        <NumberInput value={data.timeout} onChange={(v) => update({ timeout: v })} min={1} max={120} />
+      </Field>
+      <Field label="Response Variable Name">
+        <TextInput value={data.responseVariable} onChange={(v) => update({ responseVariable: v })} placeholder="api_response" />
+      </Field>
+      <Field label="Success Condition">
+        <SelectInput
+          value={data.successCondition || '2xx'}
+          onChange={(v) => update({ successCondition: v })}
+          options={[
+            { value: '2xx', label: 'Any 2xx' },
+            { value: '200', label: 'Exactly 200 OK' },
+            { value: 'non-5xx', label: 'Anything except 5xx' },
+          ]}
+        />
+      </Field>
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Async API node — non-blocking request; server calls back when done
+// -----------------------------------------------------------------------------
+function AsyncApiConfig({ data, update }) {
+  const method = data.method || 'POST';
+  const showBody = method === 'POST' || method === 'PUT' || method === 'PATCH';
+
+  return (
+    <>
+      <Field label="HTTP Method">
+        <SelectInput
+          value={method}
+          onChange={(v) => update({ method: v })}
+          options={[
+            { value: 'GET', label: 'GET' },
+            { value: 'POST', label: 'POST' },
+            { value: 'PUT', label: 'PUT' },
+            { value: 'DELETE', label: 'DELETE' },
+            { value: 'PATCH', label: 'PATCH' },
+          ]}
+        />
+      </Field>
+      <Field label="URL">
+        <TextInput value={data.url} onChange={(v) => update({ url: v })} placeholder="https://api.example.com/endpoint" />
+      </Field>
+      <Field label="Headers JSON">
+        <TextArea
+          value={data.headers}
+          onChange={(v) => update({ headers: v })}
+          placeholder='{"Authorization": "Bearer ..."}'
+          rows={3}
+        />
+      </Field>
+      {showBody && (
+        <Field label="Request Body JSON">
+          <TextArea
+            value={data.body}
+            onChange={(v) => update({ body: v })}
+            placeholder='{"key": "value"}'
+            rows={4}
+          />
+        </Field>
+      )}
+      <Field label="Callback URL">
+        <TextInput
+          value={data.callbackUrl}
+          onChange={(v) => update({ callbackUrl: v })}
+          placeholder="https://your-server.com/callback"
+        />
+      </Field>
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Gather DTMF — digit collection
+// -----------------------------------------------------------------------------
 function GatherConfig({ data, update }) {
   return (
     <>
@@ -414,6 +674,9 @@ function GatherConfig({ data, update }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Hangup — explicit call end (no fields)
+// -----------------------------------------------------------------------------
 function HangupConfig() {
   return (
     <div className="config-empty-state">
@@ -422,6 +685,9 @@ function HangupConfig() {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Legacy combined API node — sync vs async in one panel
+// -----------------------------------------------------------------------------
 function ApiCallConfig({ data, update }) {
   return (
     <>
@@ -507,6 +773,9 @@ function ApiCallConfig({ data, update }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Maps React Flow node `type` strings to their settings panel components
+// -----------------------------------------------------------------------------
 const configComponents = {
   startNode: StartConfig,
   menuNode: MenuConfig,
@@ -518,8 +787,16 @@ const configComponents = {
   hangupNode: HangupConfig,
   gatherNode: GatherConfig,
   apiCallNode: ApiCallConfig,
+  messageNode: MessageConfig,
+  startRecordNode: StartRecordConfig,
+  stopRecordNode: StopRecordConfig,
+  syncApiNode: SyncApiConfig,
+  asyncApiNode: AsyncApiConfig,
 };
 
+// -----------------------------------------------------------------------------
+// Right-hand sidebar: selected node label + type-specific form
+// -----------------------------------------------------------------------------
 export default function ConfigPanel() {
   const selectedNodeId = useFlowStore((s) => s.selectedNodeId);
   const nodes = useFlowStore((s) => s.nodes);

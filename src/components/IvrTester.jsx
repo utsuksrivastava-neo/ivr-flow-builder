@@ -29,14 +29,33 @@ const DTMF_LABELS = {
   '*': '', '0': '+', '#': '',
 };
 
+/**
+ * Returns a Promise that resolves after `ms` milliseconds.
+ * @param {number} ms - Delay in milliseconds
+ * @returns {Promise<void>}
+ */
 function delay(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Formats seconds as `MM:SS` for the call timer display.
+ * @param {number} s - Duration in seconds
+ * @returns {string}
+ */
 function formatDuration(s) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/**
+ * Modal IVR flow simulator: walks the canvas graph, simulates leg actions,
+ * DTMF, and API calls with a decision log.
+ *
+ * @param {object} props
+ * @param {boolean} props.isOpen - Whether the tester overlay is visible
+ * @param {() => void} props.onClose - Called when the user closes the modal
+ * @returns {React.ReactElement|null}
+ */
 export default function IvrTester({ isOpen, onClose }) {
   const nodes = useFlowStore((s) => s.nodes);
   const edges = useFlowStore((s) => s.edges);
@@ -77,10 +96,19 @@ export default function IvrTester({ isOpen, onClose }) {
     };
   }, []);
 
+  /**
+   * Appends one entry to the decision log.
+   * @param {object} step - Step fields (type, text, detail, etc.)
+   */
   const addStep = useCallback((step) => {
     setSteps((prev) => [...prev, { id: nanoid(6), ...step }]);
   }, []);
 
+  /**
+   * Animates the given text into the message area (typing effect); skip resolves early.
+   * @param {string} text - Full message to display
+   * @returns {Promise<'completed'|'skipped'|'aborted'>}
+   */
   const typeMessage = (text) =>
     new Promise((resolve) => {
       if (abortRef.current) return resolve('aborted');
@@ -104,6 +132,11 @@ export default function IvrTester({ isOpen, onClose }) {
       }, 38);
     });
 
+  /**
+   * Resolves when the user presses a DTMF key or triggers timeout/abort.
+   * @param {Array<{key: string, label: string}>} [options] - Optional menu keys to highlight
+   * @returns {Promise<{ key: string|null, how: string }>}
+   */
   const waitForDtmf = (options) =>
     new Promise((resolve) => {
       if (abortRef.current) return resolve({ key: null, how: 'aborted' });
@@ -114,16 +147,28 @@ export default function IvrTester({ isOpen, onClose }) {
       };
     });
 
+  /** Skips the current typewriter animation if one is active. */
   const handleSkip = () => skipRef.current?.();
 
+  /**
+   * Forwards a keypad press to the active gather/menu wait handler.
+   * @param {string} key - DTMF digit pressed
+   */
   const handleDtmfPress = (key) => {
     if (dtmfRef.current && phase === 'listening') dtmfRef.current(key, 'pressed');
   };
 
+  /** Simulates gather timeout for the current listening phase. */
   const handleTimeout = () => {
     if (dtmfRef.current && phase === 'listening') dtmfRef.current(null, 'timeout');
   };
 
+  /**
+   * Finds an outgoing edge from `nodeId` by source handle id.
+   * @param {string} nodeId - Source node id
+   * @param {string} handle - Handle id (e.g. 'default', 'api-success')
+   * @returns {object|undefined} Edge object from the flow store, if any
+   */
   const findEdge = (nodeId, handle) =>
     edges.find(
       (e) =>
@@ -131,11 +176,21 @@ export default function IvrTester({ isOpen, onClose }) {
         (e.sourceHandle === handle || (!e.sourceHandle && handle === 'default'))
     );
 
+  /**
+   * Ends the simulated call and optionally logs an error step.
+   * @param {string} [msg] - Optional error message for the log
+   */
   const endFlow = (msg) => {
     if (msg) addStep({ type: 'error', text: msg });
     setPhase('ended');
   };
 
+  /**
+   * Recursively executes the flow from a node: Say, Gather, API, etc.
+   * @param {string} nodeId - Current node id
+   * @param {string} legSid - Simulated leg SID for log context
+   * @returns {Promise<void>}
+   */
   const walkNode = async (nodeId, legSid) => {
     if (abortRef.current) return;
     const node = nodes.find((n) => n.id === nodeId);
@@ -283,19 +338,56 @@ export default function IvrTester({ isOpen, onClose }) {
       }
 
       case 'gatherNode': {
-        setPhase('listening');
-        addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Gather numDigits="${node.data.numDigits}" timeoutInSec="${node.data.timeout}" finishOnKey="${node.data.finishOnKey}"/>` });
+        let collected = '';
+        const numDigits = node.data.numDigits || 1;
+        const finishOnKey = node.data.finishOnKey || '#';
+
+        addStep({
+          type: 'api',
+          text: `POST /legs/{LegSID}/actions`,
+          detail: `<Gather numDigits="${numDigits}" timeoutInSec="${node.data.timeout}" finishOnKey="${finishOnKey}"/>`,
+        });
         addStep({ type: 'event', text: 'gather_initiated' });
-        addStep({ type: 'listening', text: `Listening for ${node.data.numDigits} digit(s)...` });
-        const { key, how } = await waitForDtmf([]);
-        if (abortRef.current) return;
-        if (how === 'timeout') addStep({ type: 'dtmf', text: 'Timeout — no input' });
-        else {
-          addStep({ type: 'dtmf', text: `Digits received: "${key}"` });
-          addStep({ type: 'event', text: `gather_success {digits: "${key}"}` });
+        setPhase('listening');
+        addStep({
+          type: 'listening',
+          text: `Collecting up to ${numDigits} digit(s)... Press ${finishOnKey} to finish early.`,
+        });
+
+        while (collected.length < numDigits) {
+          const { key, how } = await waitForDtmf([]);
+          if (abortRef.current) return;
+
+          if (how === 'timeout') {
+            addStep({ type: 'dtmf', text: `Timeout — collected ${collected.length} of ${numDigits} digits` });
+            break;
+          }
+
+          if (key === finishOnKey) {
+            addStep({ type: 'dtmf', text: `Finish key "${finishOnKey}" pressed — ending input` });
+            break;
+          }
+
+          collected += key;
+          addStep({
+            type: 'dtmf',
+            text: `Digit ${collected.length}/${numDigits}: "${key}" (collected so far: "${collected}")`,
+          });
+
+          const display = collected.padEnd(numDigits, '_').split('').join(' ');
+          setFullMessage(`Digits: [ ${display} ]`);
+          setTypedText(`Digits: [ ${display} ]`);
         }
+
+        if (collected.length > 0) {
+          addStep({ type: 'event', text: `gather_success {digits: "${collected}"}` });
+          addStep({ type: 'decision', text: `Gathered "${collected}" (${collected.length} digits)` });
+        } else {
+          addStep({ type: 'event', text: 'gather_failed {reason: "no_input"}' });
+        }
+
         setPhase('processing');
-        await delay(150);
+        await delay(200);
         const nx = findEdge(nodeId, 'default');
         if (nx) await walkNode(nx.target, legSid);
         else endFlow('No connection after gather.');
@@ -356,6 +448,109 @@ export default function IvrTester({ isOpen, onClose }) {
         break;
       }
 
+      case 'messageNode': {
+        setPhase('playing');
+        addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: `<Say>${node.data.message}</Say>` });
+        await typeMessage(node.data.message || '(empty message)');
+        if (abortRef.current) return;
+        setPhase('processing');
+        await delay(150);
+        const nx = findEdge(nodeId, 'default');
+        if (nx) await walkNode(nx.target, legSid);
+        else endFlow('No outgoing connection — flow ends.');
+        break;
+      }
+
+      case 'startRecordNode': {
+        setPhase('processing');
+        addStep({
+          type: 'api',
+          text: `POST /legs/{LegSID}/actions`,
+          detail: `<StartRecording direction="${node.data.direction}" format="${node.data.format}"/>`,
+        });
+        addStep({ type: 'event', text: 'recording_started' });
+        setFullMessage('Recording started');
+        setTypedText('Recording started');
+        await delay(800);
+        if (abortRef.current) return;
+        const nx = findEdge(nodeId, 'default');
+        if (nx) await walkNode(nx.target, legSid);
+        else endFlow('No connection after start record.');
+        break;
+      }
+
+      case 'stopRecordNode': {
+        setPhase('processing');
+        addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: '<StopRecording/>' });
+        addStep({ type: 'event', text: 'recording_stopped' });
+        setFullMessage('Recording stopped');
+        setTypedText('Recording stopped');
+        await delay(500);
+        if (abortRef.current) return;
+        const nx = findEdge(nodeId, 'default');
+        if (nx) await walkNode(nx.target, legSid);
+        else endFlow('No connection after stop record.');
+        break;
+      }
+
+      case 'syncApiNode': {
+        setPhase('processing');
+        addStep({
+          type: 'api',
+          text: `${node.data.method || 'POST'} ${node.data.url || '(no URL)'}`,
+          detail: `Mode: Synchronous · Timeout: ${node.data.timeout || 10}s`,
+        });
+        if (node.data.headers) {
+          addStep({ type: 'info', text: `Headers: ${node.data.headers}` });
+        }
+        if (node.data.body && ['POST', 'PUT', 'PATCH'].includes(node.data.method)) {
+          addStep({ type: 'info', text: `Body: ${node.data.body}` });
+        }
+        setFullMessage(`Calling API: ${node.data.method} ${node.data.url}`);
+        setTypedText(`Calling API: ${node.data.method} ${node.data.url}`);
+        addStep({ type: 'listening', text: `Waiting for response... (timeout: ${node.data.timeout}s)` });
+        await delay(1800);
+        if (abortRef.current) return;
+        addStep({ type: 'event', text: 'api_response: 200 OK' });
+        addStep({ type: 'decision', text: '{"status":"success","data":{"verified":true,"balance":12500}}' });
+        addStep({ type: 'info', text: `Stored in variable: ${node.data.responseVariable || 'api_response'}` });
+        if (abortRef.current) return;
+        addStep({ type: 'decision', text: 'Routing → Success path' });
+        setPhase('processing');
+        await delay(300);
+        const apiNext = edges.find((e) => e.source === nodeId && e.sourceHandle === 'api-success');
+        if (apiNext) await walkNode(apiNext.target, legSid);
+        else endFlow('No success path connected to API Call.');
+        break;
+      }
+
+      case 'asyncApiNode': {
+        setPhase('processing');
+        addStep({
+          type: 'api',
+          text: `${node.data.method || 'POST'} ${node.data.url || '(no URL)'}`,
+          detail: `Mode: Asynchronous · Timeout: ${node.data.timeout || 10}s`,
+        });
+        if (node.data.headers) {
+          addStep({ type: 'info', text: `Headers: ${node.data.headers}` });
+        }
+        if (node.data.body && ['POST', 'PUT', 'PATCH'].includes(node.data.method)) {
+          addStep({ type: 'info', text: `Body: ${node.data.body}` });
+        }
+        addStep({ type: 'info', text: 'Async call dispatched — not waiting for response' });
+        if (node.data.callbackUrl) {
+          addStep({ type: 'event', text: `Callback URL: ${node.data.callbackUrl}` });
+        }
+        setFullMessage(`Async API fired: ${node.data.method} ${node.data.url}`);
+        setTypedText(`Async API fired: ${node.data.method} ${node.data.url}`);
+        await delay(500);
+        if (abortRef.current) return;
+        const nx = findEdge(nodeId, 'default');
+        if (nx) await walkNode(nx.target, legSid);
+        else endFlow('No connection after async API.');
+        break;
+      }
+
       default: {
         addStep({ type: 'info', text: `Unknown node "${node.type}" — skipping` });
         const nx = findEdge(nodeId, 'default');
@@ -365,6 +560,10 @@ export default function IvrTester({ isOpen, onClose }) {
     }
   };
 
+  /**
+   * Starts the simulated call from the Start node (inbound, outbound, or both).
+   * @returns {Promise<void>}
+   */
   const startTest = async () => {
     abortRef.current = false;
     setSteps([]);
@@ -384,7 +583,8 @@ export default function IvrTester({ isOpen, onClose }) {
 
     setPhase('ringing');
     setCurrentNode(startNode);
-    const isInbound = startNode.data.callDirection === 'inbound';
+    const callDirection = startNode.data.callDirection;
+    const isInbound = callDirection === 'inbound';
 
     if (isInbound) {
       addStep({ type: 'info', text: `Incoming call on ${startNode.data.exophone}` });
@@ -397,6 +597,7 @@ export default function IvrTester({ isOpen, onClose }) {
       addStep({ type: 'event', text: 'leg_answered' });
       addStep({ type: 'info', text: 'Call answered' });
     } else {
+      // Outbound and `both`: simulate outbound; inbound may also occur in production
       addStep({ type: 'info', text: `Initiating outbound call to ${startNode.data.contactUri || startNode.data.exophone}` });
       addStep({ type: 'api', text: 'POST /v2/accounts/{AccountSID}/legs', detail: `contact_uri: "${startNode.data.contactUri}", exophone: "${startNode.data.exophone}"` });
       await delay(700);
@@ -417,6 +618,7 @@ export default function IvrTester({ isOpen, onClose }) {
     await walkNode(firstEdge.target, legSid);
   };
 
+  /** Aborts typing, DTMF wait, and marks the test ended. */
   const endTest = () => {
     abortRef.current = true;
     clearInterval(typeTimer.current);
@@ -429,6 +631,7 @@ export default function IvrTester({ isOpen, onClose }) {
     addStep({ type: 'info', text: 'Test ended by user.' });
   };
 
+  /** Ends current run and restarts `startTest` after a short delay. */
   const resetAndRestart = () => {
     abortRef.current = true;
     clearInterval(typeTimer.current);
@@ -442,10 +645,14 @@ export default function IvrTester({ isOpen, onClose }) {
   const isListening = phase === 'listening';
   const isPlaying = phase === 'playing';
 
+  /** Maps log step types to emoji icons in the decision log. */
   const stepIcon = (type) => {
     const map = { api: '🔌', event: '📡', node: '▶', decision: '➡️', dtmf: '🔢', listening: '👂', skip: '⏭', info: 'ℹ️', error: '❌' };
     return map[type] || '•';
   };
+
+  const startDir = currentNode?.data?.callDirection;
+  const isRingingInbound = startDir === 'inbound';
 
   return (
     <div className="tester-overlay">
@@ -502,10 +709,10 @@ export default function IvrTester({ isOpen, onClose }) {
             {phase === 'ringing' && (
               <div className="tester-ringing">
                 <div className="ringing-anim">
-                  {currentNode?.data.callDirection === 'inbound' ? <PhoneIncoming size={36} /> : <PhoneOutgoing size={36} />}
+                  {isRingingInbound ? <PhoneIncoming size={36} /> : <PhoneOutgoing size={36} />}
                 </div>
-                <h3>{currentNode?.data.callDirection === 'inbound' ? 'Incoming Call...' : 'Calling...'}</h3>
-                <p className="ringing-number">{currentNode?.data.callDirection === 'inbound' ? currentNode?.data.exophone : (currentNode?.data.contactUri || currentNode?.data.exophone)}</p>
+                <h3>{isRingingInbound ? 'Incoming Call...' : 'Calling...'}</h3>
+                <p className="ringing-number">{isRingingInbound ? currentNode?.data.exophone : (currentNode?.data.contactUri || currentNode?.data.exophone)}</p>
                 <div className="ringing-dots"><span /><span /><span /></div>
               </div>
             )}
@@ -545,8 +752,8 @@ export default function IvrTester({ isOpen, onClose }) {
                   )}
                 </div>
 
-                {/* Message being spoken */}
-                {(isPlaying || phase === 'processing') && fullMessage && (
+                {/* Message being spoken (or gather digit progress while listening) */}
+                {(isPlaying || phase === 'processing' || (isListening && fullMessage.startsWith('Digits:'))) && fullMessage && (
                   <div className="tester-message-box">
                     <div className="tester-msg-label">System says:</div>
                     <div className="tester-msg-text">

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@exotel-npm-dev/signal-design-system": "^1.0.7",
@@ -22,7 +24,11 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.1.0"
+    "jsdom": "^29.0.1",
+    "vite": "^5.1.0",
+    "vitest": "^4.1.2"
   }
 }

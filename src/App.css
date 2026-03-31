@@ -3092,3 +3092,191 @@ body {
 .method-put { background: rgba(245,158,11,0.2); color: #fbbf24; }
 .method-delete { background: rgba(239,68,68,0.2); color: #f87171; }
 .method-patch { background: rgba(168,85,247,0.2); color: #c084fc; }
+
+/* ═══════════════════════════════════════════════════════════════
+   NEW IVR DIALOG (Create IVR modal)
+   ═══════════════════════════════════════════════════════════════ */
+
+.dash-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.dash-dialog {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 480px;
+  max-width: 92vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: dialog-in 0.2s ease;
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dash-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dash-dialog-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dash-dialog-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+}
+
+.dash-dialog-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.dash-dialog-body {
+  padding: 20px 24px;
+}
+
+.dash-dialog-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.dash-dialog-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--font);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition);
+  box-sizing: border-box;
+}
+
+.dash-dialog-input:focus {
+  border-color: var(--accent);
+}
+
+.dash-dialog-hint {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 20px 0 10px;
+}
+
+.dash-dialog-options {
+  display: flex;
+  gap: 12px;
+}
+
+.dash-dialog-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 12px;
+  background: var(--bg-primary);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+  text-align: center;
+  color: var(--text-primary);
+  font-family: var(--font);
+}
+
+.dash-dialog-option:hover {
+  border-color: var(--accent);
+  background: rgba(57,79,182,0.06);
+}
+
+.dash-dialog-option.selected {
+  border-color: var(--accent);
+  background: rgba(57,79,182,0.12);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.dash-dialog-option-icon {
+  color: var(--accent);
+}
+
+.dash-dialog-option-icons-row {
+  display: flex;
+  gap: 6px;
+  color: var(--accent);
+}
+
+.dash-dialog-option-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dash-dialog-option-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.dash-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CONFIG PANEL - EMPTY STATE (for nodes like Stop Recording)
+   ═══════════════════════════════════════════════════════════════ */
+
+.config-empty-state {
+  padding: 16px 0;
+  text-align: center;
+}
+
+.config-empty-state p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DIRECTION BADGES (Inbound / Outbound / Both) on dashboard cards
+   ═══════════════════════════════════════════════════════════════ */
+
+.tpl-card-badge.both {
+  background: rgba(57,79,182,0.15);
+  color: #6175C5;
+  border-color: rgba(57,79,182,0.3);
+}

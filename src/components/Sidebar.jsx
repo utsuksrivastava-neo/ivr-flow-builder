@@ -1,24 +1,37 @@
+/**
+ * Sidebar.jsx
+ *
+ * Left-hand panel showing draggable IVR node types grouped by category.
+ * Users drag nodes from here onto the React Flow canvas to build flows.
+ */
 import React from 'react';
 import ExotelLogo from './ExotelLogo';
 import {
   List,
   Play,
   MessageSquare,
+  MessageCircle,
   Bot,
   PhoneForwarded,
   Mic,
+  MicOff,
   PhoneOff,
   Hash,
   Globe,
+  Zap,
   GripVertical,
 } from 'lucide-react';
 
+/**
+ * Node categories displayed in the sidebar.
+ * Each item maps to a node type that can be dropped onto the canvas.
+ */
 const nodeCategories = [
   {
     title: 'Call Flow',
     items: [
       { type: 'menuNode', label: 'IVR Menu', icon: List, color: '#394FB6', desc: 'DTMF-based menu routing' },
-      { type: 'gatherNode', label: 'Gather Digits', icon: Hash, color: '#eab308', desc: 'Collect DTMF input' },
+      { type: 'gatherNode', label: 'Gather Digits', icon: Hash, color: '#eab308', desc: 'Collect multi-digit DTMF input' },
       { type: 'transferNode', label: 'Transfer', icon: PhoneForwarded, color: '#f97316', desc: 'Dial & transfer call' },
       { type: 'hangupNode', label: 'Hang Up', icon: PhoneOff, color: '#6b7280', desc: 'End the call' },
     ],
@@ -26,9 +39,16 @@ const nodeCategories = [
   {
     title: 'Media',
     items: [
-      { type: 'playNode', label: 'Play Audio', icon: Play, color: '#a855f7', desc: 'Play audio file/URL' },
-      { type: 'sayNode', label: 'Say (TTS)', icon: MessageSquare, color: '#ec4899', desc: 'Text-to-speech message' },
-      { type: 'recordNode', label: 'Record', icon: Mic, color: '#ef4444', desc: 'Record the call' },
+      { type: 'messageNode', label: 'Message', icon: MessageCircle, color: '#14b8a6', desc: 'Simple text message to caller' },
+      { type: 'playNode', label: 'Play Audio', icon: Play, color: '#a855f7', desc: 'Play audio file / URL' },
+      { type: 'sayNode', label: 'Say (TTS)', icon: MessageSquare, color: '#ec4899', desc: 'Text-to-speech with voice config' },
+    ],
+  },
+  {
+    title: 'Recording',
+    items: [
+      { type: 'startRecordNode', label: 'Start Recording', icon: Mic, color: '#d32f2f', desc: 'Begin call recording' },
+      { type: 'stopRecordNode', label: 'Stop Recording', icon: MicOff, color: '#b71c1c', desc: 'End active recording' },
     ],
   },
   {
@@ -40,11 +60,13 @@ const nodeCategories = [
   {
     title: 'Integration',
     items: [
-      { type: 'apiCallNode', label: 'API Call', icon: Globe, color: '#0ea5e9', desc: 'HTTP API call (sync / async)' },
+      { type: 'syncApiNode', label: 'Sync API Call', icon: Globe, color: '#0ea5e9', desc: 'HTTP call — wait for response' },
+      { type: 'asyncApiNode', label: 'Async API Call', icon: Zap, color: '#8b5cf6', desc: 'Fire HTTP call & continue' },
     ],
   },
 ];
 
+/** Sets the drag data so FlowCanvas knows which node type to create on drop. */
 function onDragStart(event, nodeType) {
   event.dataTransfer.setData('application/reactflow', nodeType);
   event.dataTransfer.effectAllowed = 'move';
@@ -53,6 +75,7 @@ function onDragStart(event, nodeType) {
 export default function Sidebar() {
   return (
     <aside className="sidebar">
+      {/* Header with Exotel branding */}
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <ExotelLogo height={18} light={true} />
@@ -60,6 +83,7 @@ export default function Sidebar() {
         <p className="sidebar-hint">Drag nodes onto the canvas</p>
       </div>
 
+      {/* Scrollable node category list */}
       <div className="sidebar-content">
         {nodeCategories.map((cat) => (
           <div key={cat.title} className="sidebar-category">

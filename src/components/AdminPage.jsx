@@ -54,9 +54,9 @@ export default function AdminPage({ onBack }) {
    *
    * @param {React.FormEvent} e
    */
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
-    const result = addUser(formUsername, formPassword, formName, formRole);
+    const result = await addUser(formUsername, formPassword, formName, formRole);
     if (result.success) {
       showMessage('User added successfully.', 'success');
       setFormUsername('');

@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, BorderStyle, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -89,7 +89,18 @@ function getNodeDetails(node) {
   }
 }
 
-export function exportToExcel(flowData) {
+function addSheetFromRows(workbook, name, rows, columnWidths) {
+  const ws = workbook.addWorksheet(name);
+  if (rows.length > 0) {
+    ws.addRow(Object.keys(rows[0]));
+    rows.forEach((row) => ws.addRow(Object.values(row)));
+  }
+  columnWidths.forEach((width, i) => {
+    ws.getColumn(i + 1).width = width;
+  });
+}
+
+export async function exportToExcel(flowData) {
   const { nodes, edges, projectName } = flowData;
   const tree = buildFlowTree(nodes, edges);
 
@@ -133,22 +144,15 @@ export function exportToExcel(flowData) {
     });
   });
 
-  const wb = XLSX.utils.book_new();
-  const ws1 = XLSX.utils.json_to_sheet(nodesSheet);
-  ws1['!cols'] = [{ wch: 6 }, { wch: 10 }, { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 15 }, { wch: 60 }];
-  XLSX.utils.book_append_sheet(wb, ws1, 'IVR Flow');
-
-  const ws2 = XLSX.utils.json_to_sheet(edgesSheet);
-  ws2['!cols'] = [{ wch: 20 }, { wch: 18 }, { wch: 15 }, { wch: 20 }, { wch: 18 }];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Connections');
-
+  const workbook = new ExcelJS.Workbook();
+  addSheetFromRows(workbook, 'IVR Flow', nodesSheet, [6, 10, 20, 18, 20, 15, 60]);
+  addSheetFromRows(workbook, 'Connections', edgesSheet, [20, 18, 15, 20, 18]);
   if (menuDetails.length > 0) {
-    const ws3 = XLSX.utils.json_to_sheet(menuDetails);
-    ws3['!cols'] = [{ wch: 18 }, { wch: 6 }, { wch: 18 }, { wch: 20 }, { wch: 40 }, { wch: 12 }, { wch: 12 }];
-    XLSX.utils.book_append_sheet(wb, ws3, 'Menu Details');
+    addSheetFromRows(workbook, 'Menu Details', menuDetails, [18, 6, 18, 20, 40, 12, 12]);
   }
 
-  XLSX.writeFile(wb, `${projectName.replace(/\s+/g, '_')}_IVR.xlsx`);
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `${projectName.replace(/\s+/g, '_')}_IVR.xlsx`);
 }
 
 export function exportToWord(flowData) {

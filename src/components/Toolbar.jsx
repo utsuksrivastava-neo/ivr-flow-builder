@@ -38,12 +38,18 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef(null);
 
-  const handleExport = (type) => {
+  const handleExport = async (type) => {
     const data = getFlowData();
     switch (type) {
-      case 'excel': exportToExcel(data); break;
-      case 'word': exportToWord(data); break;
-      case 'json': exportToJSON(data); break;
+      case 'excel':
+        await exportToExcel(data);
+        break;
+      case 'word':
+        exportToWord(data);
+        break;
+      case 'json':
+        exportToJSON(data);
+        break;
     }
     setExportOpen(false);
   };

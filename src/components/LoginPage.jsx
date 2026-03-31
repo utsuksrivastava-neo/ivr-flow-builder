@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import useAuthStore from '../store/authStore';
-import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Eye, EyeOff, Loader } from 'lucide-react';
 import ExotelLogo, { ExotelXMark } from './ExotelLogo';
 
 export default function LoginPage() {
@@ -10,15 +10,24 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (login(username, password)) {
-      setError('');
-    } else {
-      setError('Invalid username or password');
-      setShake(true);
-      setTimeout(() => setShake(false), 600);
+    if (loading) return;
+    setLoading(true);
+    setError('');
+    try {
+      const result = await login(username, password);
+      if (!result.success) {
+        setError(result.error || 'Invalid username or password');
+        setShake(true);
+        setTimeout(() => setShake(false), 600);
+      }
+    } catch {
+      setError('An unexpected error occurred.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,33 +45,41 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="login-field">
-            <label>Username</label>
+            <label htmlFor="login-username">Username</label>
             <input
+              id="login-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter username"
+              autoComplete="username"
               autoFocus
+              maxLength={30}
+              required
             />
           </div>
           <div className="login-field">
-            <label>Password</label>
+            <label htmlFor="login-password">Password</label>
             <div className="login-pw-wrap">
               <input
+                id="login-password"
                 type={showPw ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
+                autoComplete="current-password"
+                maxLength={128}
+                required
               />
-              <button type="button" className="pw-toggle" onClick={() => setShowPw(!showPw)}>
+              <button type="button" className="pw-toggle" onClick={() => setShowPw(!showPw)} tabIndex={-1}>
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
           {error && <div className="login-error">{error}</div>}
-          <button type="submit" className="login-btn">
-            <LogIn size={16} />
-            Sign In
+          <button type="submit" className="login-btn" disabled={loading}>
+            {loading ? <Loader size={16} className="spin" /> : <LogIn size={16} />}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 

@@ -18,14 +18,15 @@ function Field({ label, children }) {
 // -----------------------------------------------------------------------------
 // Basic text input — single-line strings for URLs, labels, etc.
 // -----------------------------------------------------------------------------
-function TextInput({ value, onChange, placeholder, ...props }) {
+function TextInput({ value, onChange, placeholder, maxLength = 500, ...props }) {
   return (
     <input
       className="config-input"
       type="text"
       value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(e.target.value.slice(0, maxLength))}
       placeholder={placeholder}
+      maxLength={maxLength}
       {...props}
     />
   );
@@ -66,14 +67,15 @@ function SelectInput({ value, onChange, options }) {
 // -----------------------------------------------------------------------------
 // Multi-line text for prompts, JSON, messages
 // -----------------------------------------------------------------------------
-function TextArea({ value, onChange, placeholder, rows = 3 }) {
+function TextArea({ value, onChange, placeholder, rows = 3, maxLength = 2000 }) {
   return (
     <textarea
       className="config-input config-textarea"
       value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(e.target.value.slice(0, maxLength))}
       placeholder={placeholder}
       rows={rows}
+      maxLength={maxLength}
     />
   );
 }

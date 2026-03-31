@@ -198,7 +198,7 @@ describe('Voicebot node handle validation', () => {
 /*  Generic single-output nodes                   */
 /* ────────────────────────────────────────────── */
 describe('Single-output nodes (message, record, async API, etc.)', () => {
-  const singleOutputTypes = ['messageNode', 'startRecordNode', 'stopRecordNode', 'asyncApiNode', 'playNode', 'sayNode', 'gatherNode'];
+  const singleOutputTypes = ['messageNode', 'startRecordNode', 'stopRecordNode', 'asyncApiNode', 'playNode', 'sayNode', 'gatherNode', 'voicemailNode'];
 
   singleOutputTypes.forEach((type) => {
     it(`warns when ${type} has no outgoing connection`, () => {
@@ -280,5 +280,112 @@ describe('getIssueCountsForNodes', () => {
     const issues = [{ severity: 'error', nodeId: null, message: 'global' }];
     const counts = getIssueCountsForNodes(issues);
     expect(Object.keys(counts)).toHaveLength(0);
+  });
+});
+
+/* ────────────────────────────────────────────── */
+/*  Full flow path per box type (error-free)      */
+/* ────────────────────────────────────────────── */
+describe('Full flow per node type — zero errors', () => {
+  function flowWithMiddle(type, extraData) {
+    const nodes = [
+      mkNode('s', 'startNode', 'Start'),
+      { ...mkNode('mid', type, type), data: { label: type, ...extraData } },
+      mkNode('h', 'hangupNode', 'Hangup'),
+    ];
+    const edges = [mkEdge('s', 'mid'), mkEdge('mid', 'h')];
+    return { nodes, edges };
+  }
+
+  const singleOutputBoxes = [
+    ['messageNode', {}],
+    ['playNode', {}],
+    ['sayNode', {}],
+    ['gatherNode', {}],
+    ['startRecordNode', {}],
+    ['stopRecordNode', {}],
+    ['recordNode', {}],
+    ['voicemailNode', {}],
+  ];
+
+  singleOutputBoxes.forEach(([type, data]) => {
+    it(`Start → ${type} → Hangup has zero errors`, () => {
+      const { nodes, edges } = flowWithMiddle(type, data);
+      const issues = validateFlow(nodes, edges);
+      const errors = issues.filter((i) => i.severity === 'error');
+      expect(errors).toHaveLength(0);
+    });
+  });
+
+  it('Start → transferNode → Hangup has zero errors when both handles connected', () => {
+    const nodes = [
+      mkNode('s', 'startNode', 'Start'),
+      mkNode('t', 'transferNode', 'Transfer'),
+      mkNode('h1', 'hangupNode', 'H1'),
+      mkNode('h2', 'hangupNode', 'H2'),
+    ];
+    const edges = [
+      mkEdge('s', 't'),
+      mkEdge('t', 'h1', 'transfer-success'),
+      mkEdge('t', 'h2', 'transfer-fail'),
+    ];
+    const errors = validateFlow(nodes, edges).filter((i) => i.severity === 'error');
+    expect(errors).toHaveLength(0);
+  });
+
+  it('Start → voicebotNode → Hangup has zero errors when both handles connected', () => {
+    const nodes = [
+      mkNode('s', 'startNode', 'Start'),
+      mkNode('v', 'voicebotNode', 'Bot'),
+      mkNode('h1', 'hangupNode', 'H1'),
+      mkNode('h2', 'hangupNode', 'H2'),
+    ];
+    const edges = [
+      mkEdge('s', 'v'),
+      mkEdge('v', 'h1', 'bot-end'),
+      mkEdge('v', 'h2', 'bot-error'),
+    ];
+    const errors = validateFlow(nodes, edges).filter((i) => i.severity === 'error');
+    expect(errors).toHaveLength(0);
+  });
+
+  it('Start → syncApiNode → Hangup has zero errors when both handles connected', () => {
+    const nodes = [
+      mkNode('s', 'startNode', 'Start'),
+      mkNode('a', 'syncApiNode', 'API'),
+      mkNode('h1', 'hangupNode', 'OK'),
+      mkNode('h2', 'hangupNode', 'Fail'),
+    ];
+    const edges = [
+      mkEdge('s', 'a'),
+      mkEdge('a', 'h1', 'api-success'),
+      mkEdge('a', 'h2', 'api-fail'),
+    ];
+    const errors = validateFlow(nodes, edges).filter((i) => i.severity === 'error');
+    expect(errors).toHaveLength(0);
+  });
+
+  it('Start → asyncApiNode → Hangup has zero errors', () => {
+    const { nodes, edges } = flowWithMiddle('asyncApiNode', {});
+    const errors = validateFlow(nodes, edges).filter((i) => i.severity === 'error');
+    expect(errors).toHaveLength(0);
+  });
+
+  it('Start → menuNode → Hangup has zero errors with all handles', () => {
+    const nodes = [
+      mkNode('s', 'startNode', 'Start'),
+      { ...mkNode('m', 'menuNode', 'Menu'), data: { label: 'Menu', options: [{ key: '1', label: 'A' }] } },
+      mkNode('h1', 'hangupNode', 'H1'),
+      mkNode('h2', 'hangupNode', 'H2'),
+      mkNode('h3', 'hangupNode', 'H3'),
+    ];
+    const edges = [
+      mkEdge('s', 'm'),
+      mkEdge('m', 'h1', 'dtmf-1'),
+      mkEdge('m', 'h2', 'timeout'),
+      mkEdge('m', 'h3', 'invalid'),
+    ];
+    const errors = validateFlow(nodes, edges).filter((i) => i.severity === 'error');
+    expect(errors).toHaveLength(0);
   });
 });

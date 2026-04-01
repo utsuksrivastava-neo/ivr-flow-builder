@@ -599,16 +599,16 @@ function StartRecordConfig({ data, update }) {
 }
 
 // -----------------------------------------------------------------------------
-// Message node — plain text played to the caller (TTS or similar downstream)
+// Greetings node — plain text played to the caller (TTS or similar downstream)
 // -----------------------------------------------------------------------------
 function MessageConfig({ data, update }) {
   return (
     <>
-      <Field label="Message">
+      <Field label="Greeting text">
         <TextArea
           value={data.message}
           onChange={(v) => update({ message: v })}
-          placeholder="Enter message to play to caller..."
+          placeholder="Enter greeting to play to caller..."
           rows={4}
         />
       </Field>
@@ -776,11 +776,73 @@ function VoicemailConfig({ data, update }) {
 }
 
 // -----------------------------------------------------------------------------
-// Gather DTMF — digit collection
+// Gather DTMF — optional prompt (like IVR Menu) + digit collection
 // -----------------------------------------------------------------------------
 function GatherConfig({ data, update }) {
+  const promptType = data.promptType || 'none';
+
   return (
     <>
+      <Field label="Prompt Type">
+        <SelectInput
+          value={promptType}
+          onChange={(v) => update({ promptType: v })}
+          options={[
+            { value: 'none', label: 'No prompt (digits only)' },
+            { value: 'tts', label: 'Text-to-Speech' },
+            { value: 'audio', label: 'Audio URL' },
+          ]}
+        />
+      </Field>
+      {promptType === 'tts' ? (
+        <>
+          <Field label="Prompt Message">
+            <TextArea
+              value={data.prompt}
+              onChange={(v) => update({ prompt: v })}
+              placeholder="Please enter your account number, then press hash..."
+              rows={3}
+            />
+          </Field>
+          <Field label="TTS Engine">
+            <SelectInput
+              value={data.ttsEngine}
+              onChange={(v) => update({ ttsEngine: v })}
+              options={[
+                { value: 'polly', label: 'Amazon Polly' },
+                { value: 'googletts', label: 'Google TTS' },
+              ]}
+            />
+          </Field>
+          <Field label="Voice">
+            <TextInput value={data.ttsVoice} onChange={(v) => update({ ttsVoice: v })} placeholder="Aditi" />
+          </Field>
+          <Field label="Language">
+            <SelectInput
+              value={data.ttsLanguage}
+              onChange={(v) => update({ ttsLanguage: v })}
+              options={[
+                { value: 'en', label: 'English' },
+                { value: 'hi', label: 'Hindi' },
+                { value: 'ta', label: 'Tamil' },
+                { value: 'te', label: 'Telugu' },
+                { value: 'kn', label: 'Kannada' },
+                { value: 'ml', label: 'Malayalam' },
+                { value: 'bn', label: 'Bengali' },
+                { value: 'mr', label: 'Marathi' },
+                { value: 'gu', label: 'Gujarati' },
+              ]}
+            />
+          </Field>
+        </>
+      ) : promptType === 'audio' ? (
+        <Field label="Audio URL">
+          <TextInput value={data.audioUrl} onChange={(v) => update({ audioUrl: v })} placeholder="https://..." />
+        </Field>
+      ) : null}
+
+      {promptType !== 'none' && <BargeInToggle data={data} update={update} />}
+
       <Field label="Number of Digits">
         <NumberInput value={data.numDigits} onChange={(v) => update({ numDigits: v })} min={1} max={20} />
       </Field>
@@ -795,7 +857,7 @@ function GatherConfig({ data, update }) {
 }
 
 // -----------------------------------------------------------------------------
-// Hangup — explicit call end (no fields)
+// End Call — explicit call end (no fields)
 // -----------------------------------------------------------------------------
 function HangupConfig() {
   return (

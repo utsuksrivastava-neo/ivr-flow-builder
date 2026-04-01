@@ -68,8 +68,20 @@ const bankingTemplate = {
     edge('bk6', 'bk4', 'dtmf-9'),
     edge('bk7', 'bk14', 'dtmf-1'),
     edge('bk7', 'bk14', 'dtmf-2'),
+    edge('bk7', 'bk14', 'dtmf-3'),
     edge('bk7', 'bk15', 'dtmf-4'),
     edge('bk7', 'bk4', 'dtmf-9'),
+    edge('bk3', 'bk17', 'timeout'),
+    edge('bk3', 'bk17', 'invalid'),
+    edge('bk4', 'bk17', 'timeout'),
+    edge('bk4', 'bk17', 'invalid'),
+    edge('bk6', 'bk17', 'timeout'),
+    edge('bk6', 'bk17', 'invalid'),
+    edge('bk7', 'bk17', 'timeout'),
+    edge('bk7', 'bk17', 'invalid'),
+    edge('bk8', 'bk17', 'timeout'),
+    edge('bk8', 'bk17', 'invalid'),
+    edge('bk11', 'bk17', 'transfer-fail'),
     edge('bk8', 'bk11', 'dtmf-1'),
     edge('bk8', 'bk11', 'dtmf-2'),
     edge('bk8', 'bk16', 'dtmf-3'),
@@ -147,6 +159,17 @@ const insuranceTemplate = {
     edge('in9', 'in16', 'transfer-success'),
     edge('in11', 'in16', 'transfer-success'),
     edge('in13', 'in16', 'transfer-success'),
+    edge('in3', 'in15', 'timeout'),
+    edge('in3', 'in15', 'invalid'),
+    edge('in4', 'in15', 'timeout'),
+    edge('in4', 'in15', 'invalid'),
+    edge('in7', 'in15', 'timeout'),
+    edge('in7', 'in15', 'invalid'),
+    edge('in8', 'in15', 'timeout'),
+    edge('in8', 'in15', 'invalid'),
+    edge('in9', 'in16', 'transfer-fail'),
+    edge('in11', 'in16', 'transfer-fail'),
+    edge('in13', 'in16', 'transfer-fail'),
   ],
 };
 
@@ -204,6 +227,14 @@ const ecommerceTemplate = {
     edge('ec13', 'ec14'),
     edge('ec10', 'ec14', 'transfer-success'),
     edge('ec11', 'ec14', 'transfer-success'),
+    edge('ec3', 'ec13', 'timeout'),
+    edge('ec3', 'ec13', 'invalid'),
+    edge('ec6', 'ec13', 'timeout'),
+    edge('ec6', 'ec13', 'invalid'),
+    edge('ec7', 'ec13', 'timeout'),
+    edge('ec7', 'ec13', 'invalid'),
+    edge('ec10', 'ec14', 'transfer-fail'),
+    edge('ec11', 'ec14', 'transfer-fail'),
   ],
 };
 
@@ -252,6 +283,10 @@ const onboardingTemplate = {
     edge('ob10', 'ob13'),
     edge('ob11', 'ob13'),
     edge('ob12', 'ob13'),
+    edge('ob3', 'ob12', 'timeout'),
+    edge('ob3', 'ob12', 'invalid'),
+    edge('ob7', 'ob12', 'timeout'),
+    edge('ob7', 'ob12', 'invalid'),
   ],
 };
 
@@ -299,6 +334,13 @@ const orderConfirmTemplate = {
     edge('oc9', 'oc10'),
     edge('oc10', 'oc11'),
     edge('oc8', 'oc11', 'transfer-success'),
+    edge('oc3', 'oc10', 'timeout'),
+    edge('oc3', 'oc10', 'invalid'),
+    edge('oc5', 'oc10', 'timeout'),
+    edge('oc5', 'oc10', 'invalid'),
+    edge('oc6', 'oc10', 'timeout'),
+    edge('oc6', 'oc10', 'invalid'),
+    edge('oc8', 'oc10', 'transfer-fail'),
   ],
 };
 
@@ -347,13 +389,19 @@ const feedbackTemplate = {
     edge('fb9', 'fb11'),
     edge('fb10', 'fb12'),
     edge('fb11', 'fb12'),
+    edge('fb3', 'fb11', 'timeout'),
+    edge('fb3', 'fb11', 'invalid'),
+    edge('fb5', 'fb11', 'timeout'),
+    edge('fb5', 'fb11', 'invalid'),
+    edge('fb7', 'fb11', 'timeout'),
+    edge('fb7', 'fb11', 'invalid'),
   ],
 };
 
 // ─────────────────────────────────────────
 // 7. KYC VERIFICATION (Outbound) — Banking / Fintech
 // Showcases messageNode, gatherNode (multi-digit), syncApiNode, startRecordNode,
-// stopRecordNode, asyncApiNode, menuNode, and hangupNode.
+// stopRecordNode, asyncApiNode, menuNode, and End Call (hangupNode).
 // ─────────────────────────────────────────
 const kycTemplate = {
   id: 'kyc-verification',
@@ -437,6 +485,8 @@ const kycTemplate = {
     edge('kyc11', 'kyc12'),
     edge('kyc13', 'kyc14'),
     edge('kyc14', 'kyc12'),
+    edge('kyc7', 'kyc11', 'timeout'),
+    edge('kyc7', 'kyc11', 'invalid'),
   ],
 };
 

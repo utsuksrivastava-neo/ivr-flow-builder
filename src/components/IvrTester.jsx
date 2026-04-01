@@ -570,6 +570,35 @@ export default function IvrTester({ isOpen, onClose }) {
       }
 
       case 'gatherNode': {
+        const pt = node.data.promptType || 'none';
+        if (pt === 'tts' && (node.data.prompt || '').trim()) {
+          setPhase('playing');
+          addStep({
+            type: 'api',
+            text: `POST /legs/{LegSID}/actions`,
+            detail: `<Say>${node.data.prompt}</Say>`,
+          });
+          addStep({ type: 'event', text: 'say_started' });
+          const pr = await typeMessage(node.data.prompt);
+          if (abortRef.current) return;
+          addStep({
+            type: pr === 'skipped' ? 'skip' : 'info',
+            text: pr === 'skipped' ? 'Prompt skipped' : 'Prompt finished',
+          });
+          addStep({ type: 'event', text: 'say_completed' });
+        } else if (pt === 'audio' && (node.data.audioUrl || '').trim()) {
+          setPhase('playing');
+          addStep({
+            type: 'api',
+            text: `POST /legs/{LegSID}/actions`,
+            detail: `<StartPlay loop="1">${node.data.audioUrl}</StartPlay>`,
+          });
+          addStep({ type: 'event', text: 'play_started' });
+          await delay(900);
+          if (abortRef.current) return;
+          addStep({ type: 'event', text: 'play_completed' });
+        }
+
         let collected = '';
         const numDigits = node.data.numDigits || 1;
         const finishOnKey = node.data.finishOnKey || '#';
@@ -660,7 +689,7 @@ export default function IvrTester({ isOpen, onClose }) {
       case 'hangupNode': {
         addStep({ type: 'api', text: `POST /legs/{LegSID}/actions`, detail: '<Hangup/>' });
         addStep({ type: 'event', text: 'leg_terminated' });
-        addStep({ type: 'info', text: 'Call ended — Hangup.' });
+        addStep({ type: 'info', text: 'Call ended — End Call.' });
         setFullMessage('Call ended');
         setTypedText('Call ended');
         setPhase('ended');

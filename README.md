@@ -25,7 +25,7 @@ Login with `demo` / `demo123`
 
 | Category | Nodes |
 |----------|-------|
-| **Call Flow** | IVR Menu, Gather Digits, Transfer, Hang Up |
+| **Call Flow** | IVR Menu, Gather Digits, Transfer, End Call |
 | **Media** | Message, Play Audio, Say (TTS) |
 | **Recording** | Start Recording, Stop Recording, Voicemail |
 | **AI / Bot** | Voicebot (WebSocket streaming) |

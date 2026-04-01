@@ -7,13 +7,13 @@ const nodeTypeLabels = {
   menuNode: 'IVR Menu',
   playNode: 'Play Audio (StartPlay)',
   sayNode: 'Say / TTS (StartSay)',
-  messageNode: 'Message (Say)',
+  messageNode: 'Greetings (Say)',
   voicebotNode: 'Voicebot (StartStream)',
   transferNode: 'Transfer Call (Dial)',
   recordNode: 'Record (StartRecording)',
   startRecordNode: 'Start Recording',
   stopRecordNode: 'Stop Recording',
-  hangupNode: 'Hang Up (Hangup)',
+  hangupNode: 'End Call (Hangup)',
   gatherNode: 'Gather Digits (Gather)',
   conditionNode: 'Condition',
   apiCallNode: 'API Call',
@@ -88,11 +88,16 @@ function getNodeDetails(node) {
     case 'recordNode':
       return `Direction: ${d.direction || 'both'}\nFormat: ${d.format || 'mp3'}\nBitrate: ${d.bitrate || '8'}\nStorage: ${d.storageType || 's3'}`;
     case 'hangupNode':
-      return 'Terminates the call.';
-    case 'gatherNode':
-      return `Digits: ${d.numDigits || 1}\nTimeout: ${d.timeout || 10}s\nFinish Key: ${d.finishOnKey || '#'}`;
+      return 'Ends the call.';
+    case 'gatherNode': {
+      const pt = d.promptType || 'none';
+      let promptLine = '';
+      if (pt === 'tts') promptLine = `Prompt (TTS): ${d.prompt || '—'}\nEngine: ${d.ttsEngine || 'polly'} · Voice: ${d.ttsVoice || 'Aditi'}\n`;
+      else if (pt === 'audio') promptLine = `Prompt (audio): ${d.audioUrl || '—'}\n`;
+      return `${promptLine}Digits: ${d.numDigits || 1}\nTimeout: ${d.timeout || 10}s\nFinish Key: ${d.finishOnKey || '#'}`;
+    }
     case 'messageNode':
-      return `Message: ${d.message || '—'}`;
+      return `Greeting: ${d.message || '—'}`;
     case 'startRecordNode':
       return `Direction: ${d.direction || 'both'}\nFormat: ${d.format || 'mp3'}\nBitrate: ${d.bitrate || '8'}\nStorage: ${d.storageType || 's3'}`;
     case 'stopRecordNode':

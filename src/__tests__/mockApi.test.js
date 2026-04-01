@@ -433,9 +433,9 @@ describe('Voicemail Node (mockVoicemail)', () => {
 });
 
 /* ──────────────────────────────────────────────── */
-/*  16. Hang Up Node → Hangup Action                */
+/*  16. End Call Node → Exotel Hangup action         */
 /* ──────────────────────────────────────────────── */
-describe('Hang Up Node (mockHangupLeg)', () => {
+describe('End Call node (mockHangupLeg)', () => {
   it('generates ExoML with <Hangup>', () => {
     const r = mockHangupLeg('leg1');
     expect(r.request.body.exoml).toContain('<Hangup>');

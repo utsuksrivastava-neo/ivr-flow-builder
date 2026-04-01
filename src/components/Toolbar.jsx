@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import useFlowStore from '../store/flowStore';
+import { validateFlow } from '../utils/validationUtils';
 import useThemeStore from '../store/themeStore';
 import { exportToExcel, exportToWord, exportToJSON, importFromJSON } from '../utils/exportUtils';
 import {
@@ -35,8 +37,14 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
   const loadFlowData = useFlowStore((s) => s.loadFlowData);
   const clearCanvas = useFlowStore((s) => s.clearCanvas);
   const runValidation = useFlowStore((s) => s.runValidation);
-  const validationIssues = useFlowStore((s) => s.validationIssues);
   const validationVisible = useFlowStore((s) => s.validationVisible);
+  const { nodes: flowNodes, edges: flowEdges } = useFlowStore(
+    useShallow((s) => ({ nodes: s.nodes, edges: s.edges }))
+  );
+  const livePreviewIssues = useMemo(() => validateFlow(flowNodes, flowEdges), [flowNodes, flowEdges]);
+  const liveErrorCount = livePreviewIssues.filter((i) => i.severity === 'error').length;
+  const liveWarningCount = livePreviewIssues.filter((i) => i.severity === 'warning').length;
+  const liveIssueTotal = livePreviewIssues.length;
   const setValidationVisible = useFlowStore((s) => s.setValidationVisible);
   const undo = useFlowStore((s) => s.undo);
   const redo = useFlowStore((s) => s.redo);
@@ -162,7 +170,13 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
           <span>Templates</span>
         </button>
         <button
-          className={`toolbar-btn validate-btn ${validationVisible ? 'active' : ''}`}
+          className={`toolbar-btn validate-btn ${validationVisible ? 'active' : ''} ${liveErrorCount > 0 ? 'validate-has-errors' : liveWarningCount > 0 ? 'validate-has-warnings' : ''}`}
+          type="button"
+          title={
+            liveIssueTotal === 0
+              ? 'No issues — click for details'
+              : `${liveErrorCount} error(s), ${liveWarningCount} warning(s) — click for details`
+          }
           onClick={() => {
             if (validationVisible) {
               setValidationVisible(false);
@@ -171,14 +185,20 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
             }
           }}
         >
-          {validationIssues.length > 0 && validationVisible ? (
+          {liveErrorCount > 0 ? (
+            <AlertTriangle size={14} />
+          ) : liveWarningCount > 0 ? (
             <AlertTriangle size={14} />
           ) : (
             <ShieldCheck size={14} />
           )}
           <span>Validate</span>
-          {validationIssues.length > 0 && validationVisible && (
-            <span className="validate-badge">{validationIssues.length}</span>
+          {liveIssueTotal > 0 && (
+            <span
+              className={`validate-badge ${liveErrorCount > 0 ? 'validate-badge-error' : 'validate-badge-warn'}`}
+            >
+              {liveIssueTotal}
+            </span>
           )}
         </button>
         <button className="toolbar-btn test-ivr-btn" onClick={onTestIvr}>

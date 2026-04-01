@@ -6,10 +6,32 @@
  */
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
+import { migrateHangupNodeLabels } from '../utils/flowLabelMigrations';
+
+function migrateProject(p) {
+  const nodes = migrateHangupNodeLabels(p.nodes);
+  let prodSnapshot = p.prodSnapshot;
+  if (prodSnapshot?.nodes) {
+    prodSnapshot = {
+      ...prodSnapshot,
+      nodes: migrateHangupNodeLabels(prodSnapshot.nodes),
+    };
+  }
+  return { ...p, nodes, prodSnapshot };
+}
 
 function load() {
-  try { return JSON.parse(localStorage.getItem('ivr-projects') || '[]'); }
-  catch { return []; }
+  try {
+    const raw = localStorage.getItem('ivr-projects') || '[]';
+    const parsed = JSON.parse(raw);
+    const projects = Array.isArray(parsed) ? parsed.map(migrateProject) : [];
+    if (JSON.stringify(projects) !== JSON.stringify(parsed)) {
+      localStorage.setItem('ivr-projects', JSON.stringify(projects));
+    }
+    return projects;
+  } catch {
+    return [];
+  }
 }
 
 function persist(projects) {

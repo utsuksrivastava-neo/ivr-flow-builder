@@ -459,28 +459,47 @@ export const RecordNode = memo(({ id, data, selected }) => (
   </NodeShell>
 ));
 
-/** Terminal hangup — no outgoing edges. */
+/** Terminal end-call node — no outgoing edges. */
 export const HangupNode = memo(({ id, data, selected }) => (
   <NodeShell type="hangupNode" data={data} selected={selected} outputIds={[]} nodeId={id}>
     <div className="node-prompt" style={{ opacity: 0.6, textAlign: 'center' }}>
-      End of call
+      End Call
     </div>
   </NodeShell>
 ));
 
-/** Collect DTMF digits with finish key. */
-export const GatherNode = memo(({ id, data, selected }) => (
-  <NodeShell type="gatherNode" data={data} selected={selected} nodeId={id}>
-    <div className="node-info">
-      <span className="node-info-label">Digits</span>
-      <span className="node-info-value">{data.numDigits || 1}</span>
-    </div>
-    <div className="node-info">
-      <span className="node-info-label">Finish Key</span>
-      <span className="node-info-value">{data.finishOnKey || '#'}</span>
-    </div>
-  </NodeShell>
-));
+/** Collect DTMF digits with optional TTS/audio prompt (like IVR Menu). */
+export const GatherNode = memo(({ id, data, selected }) => {
+  const pt = data.promptType || 'none';
+  const promptPreview =
+    pt === 'tts' && data.prompt
+      ? data.prompt.length > 60
+        ? data.prompt.slice(0, 60) + '…'
+        : data.prompt
+      : pt === 'audio' && data.audioUrl
+        ? data.audioUrl.length > 40
+          ? '…' + data.audioUrl.slice(-40)
+          : data.audioUrl
+        : null;
+
+  return (
+    <NodeShell type="gatherNode" data={data} selected={selected} nodeId={id}>
+      {promptPreview && (
+        <div className="node-prompt" title={pt === 'tts' ? data.prompt : data.audioUrl}>
+          {pt === 'audio' ? `♪ ${promptPreview}` : promptPreview}
+        </div>
+      )}
+      <div className="node-info">
+        <span className="node-info-label">Digits</span>
+        <span className="node-info-value">{data.numDigits || 1}</span>
+      </div>
+      <div className="node-info">
+        <span className="node-info-label">Finish Key</span>
+        <span className="node-info-value">{data.finishOnKey || '#'}</span>
+      </div>
+    </NodeShell>
+  );
+});
 
 /** Generic API call with sync/async in data and success/failure handles. */
 export const ApiCallNode = memo(({ id, data, selected }) => {

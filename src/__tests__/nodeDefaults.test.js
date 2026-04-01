@@ -79,11 +79,11 @@ describe('sayNode defaults', () => {
   });
 });
 
-/* ─── Message Node ───────────────────────────── */
+/* ─── Greetings Node ─────────────────────────── */
 describe('messageNode defaults', () => {
   it('has message text and bargeIn', () => {
     const n = addAndGet('messageNode');
-    expect(n.data.label).toBe('Message');
+    expect(n.data.label).toBe('Greetings');
     expect(n.data.message).toBeDefined();
     expect(n.data.bargeIn).toBe(true);
   });
@@ -154,11 +154,11 @@ describe('stopRecordNode defaults', () => {
   });
 });
 
-/* ─── Hang Up Node ───────────────────────────── */
+/* ─── End Call Node ──────────────────────────── */
 describe('hangupNode defaults', () => {
   it('has label and no extra config', () => {
     const n = addAndGet('hangupNode');
-    expect(n.data.label).toBe('Hang Up');
+    expect(n.data.label).toBe('End Call');
     expect(Object.keys(n.data)).toHaveLength(1);
   });
 });
@@ -171,7 +171,9 @@ describe('gatherNode defaults', () => {
     expect(n.data.numDigits).toBe(5);
     expect(n.data.timeout).toBe(10);
     expect(n.data.finishOnKey).toBe('#');
-    expect(n.data.promptType).toBe('none');
+    expect(n.data.promptType).toBe('tts');
+    expect(n.data.ttsEngine).toBe('polly');
+    expect(n.data.prompt).toBeDefined();
   });
 });
 

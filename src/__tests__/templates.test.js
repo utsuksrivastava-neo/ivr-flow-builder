@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { templates } from '../data/templates';
+import { validateFlow } from '../utils/validationUtils';
 
 const VALID_NODE_TYPES = new Set([
   'startNode', 'menuNode', 'playNode', 'sayNode', 'messageNode',
@@ -109,6 +110,11 @@ templates.forEach((tpl) => {
       const start = tpl.nodes.find((n) => n.type === 'startNode');
       const outgoing = tpl.edges.filter((e) => e.source === start.id);
       expect(outgoing.length).toBeGreaterThan(0);
+    });
+
+    it('passes flow validation with zero errors and zero warnings', () => {
+      const issues = validateFlow(tpl.nodes, tpl.edges);
+      expect(issues).toEqual([]);
     });
   });
 });

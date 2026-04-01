@@ -3,7 +3,7 @@
  *
  * Inspects React Flow–style `nodes` and `edges` and returns human-readable issues:
  * missing Start, unreachable nodes, unconnected outputs/handles, dead ends that do not
- * terminate at Hangup/Transfer, and nodes with no incoming edges. Consumers use this
+ * terminate at End Call (hangup) / Transfer, and nodes with no incoming edges. Consumers use this
  * to surface warnings and errors in the builder UI.
  *
  * @module utils/validationUtils
@@ -169,7 +169,7 @@ export function validateFlow(nodes, edges) {
     }
   });
 
-  // --- Dead-end detection: every path from Start must eventually reach Hangup or Transfer ---
+  // --- Dead-end detection: every path from Start must eventually reach End Call or Transfer ---
   const terminalTypes = new Set(['hangupNode', 'transferNode']);
 
   /**
@@ -207,7 +207,7 @@ export function validateFlow(nodes, edges) {
     issues.push({
       severity: 'error',
       nodeId: id,
-      message: `"${n.data.label}" is a dead end — every path must end with "Hang Up" or "Transfer".`,
+      message: `"${n.data.label}" is a dead end — every path must end with "End Call" or "Transfer".`,
       category: 'dead-end',
     });
   });

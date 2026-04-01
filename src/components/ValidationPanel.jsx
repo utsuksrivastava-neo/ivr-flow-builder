@@ -72,7 +72,7 @@ export default function ValidationPanel() {
         <div className="validation-clean">
           <CheckCircle2 size={32} className="validation-clean-icon" />
           <h4>All good!</h4>
-          <p>Your IVR flow has no issues. Every path ends with a Hang Up or Transfer node.</p>
+          <p>Your IVR flow has no issues. Every path ends with an End Call or Transfer node.</p>
         </div>
       ) : (
         <>
@@ -128,7 +128,7 @@ export default function ValidationPanel() {
           </div>
 
           <div className="validation-tip">
-            <p>Click any issue to select the problematic node. Every flow path should end with a <strong>Hang Up</strong> or <strong>Transfer</strong> node.</p>
+            <p>Click any issue to select the problematic node. Every flow path should end with an <strong>End Call</strong> or <strong>Transfer</strong> node.</p>
           </div>
         </>
       )}

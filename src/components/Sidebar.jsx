@@ -35,13 +35,13 @@ const nodeCategories = [
       { type: 'menuNode', label: 'IVR Menu', icon: List, color: '#394FB6', desc: 'DTMF-based menu routing' },
       { type: 'gatherNode', label: 'Gather Digits', icon: Hash, color: '#eab308', desc: 'Collect multi-digit DTMF input' },
       { type: 'transferNode', label: 'Transfer', icon: PhoneForwarded, color: '#f97316', desc: 'Dial & transfer call' },
-      { type: 'hangupNode', label: 'Hang Up', icon: PhoneOff, color: '#6b7280', desc: 'End the call' },
+      { type: 'hangupNode', label: 'End Call', icon: PhoneOff, color: '#6b7280', desc: 'End the call' },
     ],
   },
   {
     title: 'Media',
     items: [
-      { type: 'messageNode', label: 'Message', icon: MessageCircle, color: '#14b8a6', desc: 'Simple text message to caller' },
+      { type: 'messageNode', label: 'Greetings', icon: MessageCircle, color: '#14b8a6', desc: 'Simple greeting message to caller' },
       { type: 'playNode', label: 'Play Audio', icon: Play, color: '#a855f7', desc: 'Play audio file / URL' },
       { type: 'sayNode', label: 'Say (TTS)', icon: MessageSquare, color: '#ec4899', desc: 'Text-to-speech with voice config' },
     ],

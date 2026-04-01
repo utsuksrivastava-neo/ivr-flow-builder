@@ -3,6 +3,7 @@ import { addEdge, applyNodeChanges, applyEdgeChanges } from 'reactflow';
 import { nanoid } from 'nanoid';
 import { autoLayoutNodes } from '../utils/layoutUtils';
 import { validateFlow, getIssueCountsForNodes } from '../utils/validationUtils';
+import { migrateHangupNodeLabels } from '../utils/flowLabelMigrations';
 
 const defaultStartNode = {
   id: 'start-1',
@@ -247,7 +248,8 @@ const useFlowStore = create((set, get) => ({
   loadFlowData: (data) => {
     _undoStack = [];
     _redoStack = [];
-    const nodes = data.nodes || [defaultStartNode];
+    const rawNodes = data.nodes || [defaultStartNode];
+    const nodes = migrateHangupNodeLabels(rawNodes);
     const edges = data.edges || [];
     _lastSavedJSON = JSON.stringify({ nodes, edges });
     set({
@@ -340,10 +342,10 @@ function getNodeDefaults(type) {
         loop: 1,
         bargeIn: true,
       };
-    /** Plain text message node (no TTS configuration). */
+    /** Plain text greeting node (no TTS configuration). */
     case 'messageNode':
       return {
-        label: 'Message',
+        label: 'Greetings',
         message: 'Hello! Thank you for calling.',
         bargeIn: true,
       };
@@ -396,7 +398,7 @@ function getNodeDefaults(type) {
       };
     case 'hangupNode':
       return {
-        label: 'Hang Up',
+        label: 'End Call',
       };
     case 'gatherNode':
       return {
@@ -404,8 +406,13 @@ function getNodeDefaults(type) {
         numDigits: 5,
         timeout: 10,
         finishOnKey: '#',
-        prompt: '',
-        promptType: 'none',
+        prompt: 'Please enter your digits. Press hash when done.',
+        promptType: 'tts',
+        audioUrl: '',
+        ttsEngine: 'polly',
+        ttsVoice: 'Aditi',
+        ttsLanguage: 'en',
+        bargeIn: true,
       };
     case 'apiCallNode':
       return {

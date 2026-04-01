@@ -37,10 +37,10 @@ describe('Missing start node', () => {
 /*  Simple valid flow                             */
 /* ────────────────────────────────────────────── */
 describe('Simple valid flow', () => {
-  it('reports no errors for a Start → Hangup flow', () => {
+  it('reports no errors for a Start → End Call flow', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
-      mkNode('h', 'hangupNode', 'Hangup'),
+      mkNode('h', 'hangupNode', 'End Call'),
     ];
     const edges = [mkEdge('s', 'h')];
     const issues = validateFlow(nodes, edges);
@@ -56,7 +56,7 @@ describe('Orphan nodes', () => {
   it('flags nodes not reachable from start', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
-      mkNode('h', 'hangupNode', 'Hangup'),
+      mkNode('h', 'hangupNode', 'End Call'),
       mkNode('orphan', 'menuNode', 'Orphan Menu'),
     ];
     const edges = [mkEdge('s', 'h')];
@@ -73,7 +73,7 @@ describe('Dead ends', () => {
   it('flags a non-terminal node with no outgoing edges', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
-      mkNode('m', 'messageNode', 'Message'),
+      mkNode('m', 'messageNode', 'Greetings'),
     ];
     const edges = [mkEdge('s', 'm')];
     const issues = validateFlow(nodes, edges);
@@ -85,7 +85,7 @@ describe('Dead ends', () => {
   it('does not flag hangupNode as a dead end', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
-      mkNode('h', 'hangupNode', 'Hangup'),
+      mkNode('h', 'hangupNode', 'End Call'),
     ];
     const edges = [mkEdge('s', 'h')];
     const issues = validateFlow(nodes, edges);
@@ -221,7 +221,7 @@ describe('Floating nodes', () => {
   it('flags non-start nodes with no incoming edges', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
-      mkNode('h', 'hangupNode', 'Hangup'),
+      mkNode('h', 'hangupNode', 'End Call'),
       mkNode('float', 'messageNode', 'Floating'),
     ];
     const edges = [mkEdge('s', 'h')];
@@ -235,16 +235,16 @@ describe('Floating nodes', () => {
 /*  Full valid flow (no errors / warnings)        */
 /* ────────────────────────────────────────────── */
 describe('Full valid flow', () => {
-  it('returns zero errors for a well-connected Start → Menu → Hangup flow', () => {
+  it('returns zero errors for a well-connected Start → Menu → End Call flow', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
       {
         ...mkNode('m', 'menuNode', 'Menu'),
         data: { label: 'Menu', options: [{ key: '1', label: 'A' }] },
       },
-      mkNode('h1', 'hangupNode', 'Hangup 1'),
-      mkNode('h2', 'hangupNode', 'Hangup Timeout'),
-      mkNode('h3', 'hangupNode', 'Hangup Invalid'),
+      mkNode('h1', 'hangupNode', 'End Call 1'),
+      mkNode('h2', 'hangupNode', 'End Call Timeout'),
+      mkNode('h3', 'hangupNode', 'End Call Invalid'),
     ];
     const edges = [
       mkEdge('s', 'm'),
@@ -291,7 +291,7 @@ describe('Full flow per node type — zero errors', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
       { ...mkNode('mid', type, type), data: { label: type, ...extraData } },
-      mkNode('h', 'hangupNode', 'Hangup'),
+      mkNode('h', 'hangupNode', 'End Call'),
     ];
     const edges = [mkEdge('s', 'mid'), mkEdge('mid', 'h')];
     return { nodes, edges };
@@ -309,7 +309,7 @@ describe('Full flow per node type — zero errors', () => {
   ];
 
   singleOutputBoxes.forEach(([type, data]) => {
-    it(`Start → ${type} → Hangup has zero errors`, () => {
+    it(`Start → ${type} → End Call has zero errors`, () => {
       const { nodes, edges } = flowWithMiddle(type, data);
       const issues = validateFlow(nodes, edges);
       const errors = issues.filter((i) => i.severity === 'error');
@@ -317,7 +317,7 @@ describe('Full flow per node type — zero errors', () => {
     });
   });
 
-  it('Start → transferNode → Hangup has zero errors when both handles connected', () => {
+  it('Start → transferNode → End Call has zero errors when both handles connected', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
       mkNode('t', 'transferNode', 'Transfer'),
@@ -333,7 +333,7 @@ describe('Full flow per node type — zero errors', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('Start → voicebotNode → Hangup has zero errors when both handles connected', () => {
+  it('Start → voicebotNode → End Call has zero errors when both handles connected', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
       mkNode('v', 'voicebotNode', 'Bot'),
@@ -349,7 +349,7 @@ describe('Full flow per node type — zero errors', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('Start → syncApiNode → Hangup has zero errors when both handles connected', () => {
+  it('Start → syncApiNode → End Call has zero errors when both handles connected', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
       mkNode('a', 'syncApiNode', 'API'),
@@ -365,13 +365,13 @@ describe('Full flow per node type — zero errors', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('Start → asyncApiNode → Hangup has zero errors', () => {
+  it('Start → asyncApiNode → End Call has zero errors', () => {
     const { nodes, edges } = flowWithMiddle('asyncApiNode', {});
     const errors = validateFlow(nodes, edges).filter((i) => i.severity === 'error');
     expect(errors).toHaveLength(0);
   });
 
-  it('Start → menuNode → Hangup has zero errors with all handles', () => {
+  it('Start → menuNode → End Call has zero errors with all handles', () => {
     const nodes = [
       mkNode('s', 'startNode', 'Start'),
       { ...mkNode('m', 'menuNode', 'Menu'), data: { label: 'Menu', options: [{ key: '1', label: 'A' }] } },

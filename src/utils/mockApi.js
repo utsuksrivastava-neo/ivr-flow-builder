@@ -706,8 +706,15 @@ export function generateApiCallsForNode(node, legSid) {
       return mockStopRecording(legSid);
     case 'hangupNode':
       return mockHangupLeg(legSid);
-    case 'gatherNode':
-      return mockGatherOnLeg(legSid, d.numDigits, d.timeout, d.finishOnKey);
+    case 'gatherNode': {
+      let innerExoml;
+      if (d.promptType === 'tts' && (d.prompt || '').trim()) {
+        innerExoml = `<Say loop="1" preferredTTSEngine="${d.ttsEngine || 'polly'}" language="${d.ttsLanguage || 'en'}" pollyVoiceId="${d.ttsVoice || 'Aditi'}">${d.prompt}</Say>`;
+      } else if (d.promptType === 'audio' && (d.audioUrl || '').trim()) {
+        innerExoml = `<StartPlay loop="1">${d.audioUrl}</StartPlay>`;
+      }
+      return mockGatherOnLeg(legSid, d.numDigits, d.timeout, d.finishOnKey, undefined, innerExoml);
+    }
     case 'voicemailNode':
       return mockVoicemail(legSid, d.message, d.silenceInSec, d.finishOnKey, d.timeoutInSec);
     case 'syncApiNode':

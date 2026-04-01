@@ -59,7 +59,7 @@ describe('addNode', () => {
   it('adds a messageNode with correct defaults', () => {
     const id = useFlowStore.getState().addNode('messageNode', { x: 100, y: 100 });
     const node = useFlowStore.getState().nodes.find((n) => n.id === id);
-    expect(node.data.label).toBe('Message');
+    expect(node.data.label).toBe('Greetings');
     expect(node.data.message).toBe('Hello! Thank you for calling.');
   });
 
@@ -103,7 +103,7 @@ describe('addNode', () => {
   it('adds a hangupNode', () => {
     const id = useFlowStore.getState().addNode('hangupNode', { x: 100, y: 100 });
     const node = useFlowStore.getState().nodes.find((n) => n.id === id);
-    expect(node.data.label).toBe('Hang Up');
+    expect(node.data.label).toBe('End Call');
   });
 
   it('adds a playNode with audio URL default', () => {

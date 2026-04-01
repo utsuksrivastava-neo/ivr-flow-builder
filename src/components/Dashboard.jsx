@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import useAuthStore from '../store/authStore';
 import useProjectsStore from '../store/projectsStore';
 import useFlowStore from '../store/flowStore';
+import useThemeStore from '../store/themeStore';
 import TemplateGallery from './TemplateGallery';
 import {
   Plus,
@@ -21,6 +22,8 @@ import {
   Rocket,
   FlaskConical,
   CheckCircle2,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import ExotelLogo from './ExotelLogo';
 
@@ -68,6 +71,8 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
   const revertToUat = useProjectsStore((s) => s.revertToUat);
   const loadFlowData = useFlowStore((s) => s.loadFlowData);
   const clearCanvas = useFlowStore((s) => s.clearCanvas);
+  const themeMode = useThemeStore((s) => s.mode);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
 
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -205,12 +210,15 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
     <div className="dash-page">
       <header className="dash-header">
         <div className="dash-header-left">
-          <ExotelLogo height={22} light={true} />
+          <ExotelLogo height={22} light={themeMode === 'dark'} />
           <span className="dash-divider">|</span>
           <h1>IVR Flow Builder</h1>
         </div>
         <div className="dash-header-right">
           <span className="dash-user">Welcome, {user?.name || 'User'}</span>
+          <button type="button" className="toolbar-btn icon-only" onClick={toggleTheme} title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+            {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
           {user?.role === 'admin' && (
             <button type="button" className="toolbar-btn" onClick={() => onAdminPage?.()}>
               <Shield size={14} />

@@ -2,16 +2,16 @@
    Exotel IVR Flow Builder — Global Styles
    ============================================================ */
 
+/* ─── Shared tokens (non-color) ───────────────────────────── */
 :root {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --bg-elevated: #1a2332;
-  --border: #334155;
-  --border-light: #475569;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
+  --transition: 150ms ease;
+  --font: 'Noto Sans', 'Inter', 'Roboto', sans-serif;
+  --sidebar-width: 240px;
+  --config-width: 300px;
+  --toolbar-height: 52px;
   --accent: #394FB6;
   --accent-hover: #6175C5;
   --danger: #d32f2f;
@@ -22,16 +22,48 @@
   --exotel-primary: #394FB6;
   --exotel-primary-light: #6175C5;
   --exotel-primary-dark: #28377F;
-  --radius: 8px;
-  --radius-sm: 6px;
-  --radius-lg: 12px;
+}
+
+/* ─── Light theme (default) ───────────────────────────────── */
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-elevated: #ffffff;
+  --border: #e2e8f0;
+  --border-light: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --canvas-bg: #f1f5f9;
+  --canvas-dot: #cbd5e1;
+  --minimap-mask: rgba(241, 245, 249, 0.8);
+  --node-text: #0f172a;
+  --node-detail: #475569;
+  --code-bg: #f1f5f9;
+}
+
+/* ─── Dark theme ──────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-elevated: #1a2332;
+  --border: #334155;
+  --border-light: #475569;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
   --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
-  --transition: 150ms ease;
-  --font: 'Noto Sans', 'Inter', 'Roboto', sans-serif;
-  --sidebar-width: 240px;
-  --config-width: 300px;
-  --toolbar-height: 52px;
+  --canvas-bg: #0f172a;
+  --canvas-dot: #334155;
+  --minimap-mask: rgba(15, 23, 42, 0.8);
+  --node-text: #f1f5f9;
+  --node-detail: #94a3b8;
+  --code-bg: #1e293b;
 }
 
 *,
@@ -615,11 +647,21 @@ body {
 }
 
 .timeout-badge {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+
+.invalid-badge {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+[data-theme="dark"] .timeout-badge {
   background: #78350f;
   color: #fbbf24;
 }
 
-.invalid-badge {
+[data-theme="dark"] .invalid-badge {
   background: #7f1d1d;
   color: #fca5a5;
 }
@@ -985,9 +1027,13 @@ body {
 
 .dtmf-prompt {
   padding: 10px 14px;
-  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  background: linear-gradient(135deg, rgba(57,79,182,0.12), rgba(57,79,182,0.06));
   border-bottom: 1px solid var(--accent);
   animation: dtmfIn 300ms ease;
+}
+
+[data-theme="dark"] .dtmf-prompt {
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
 }
 
 @keyframes dtmfIn {
@@ -1091,7 +1137,7 @@ body {
 }
 
 .api-log-entry.request {
-  background: rgba(30, 41, 59, 0.6);
+  background: var(--bg-tertiary);
   border: 1px solid var(--border);
 }
 
@@ -1278,13 +1324,13 @@ body {
 /* ============ Validate Button ============ */
 
 .validate-btn {
-  background: #1e293b !important;
+  background: var(--bg-secondary) !important;
   border-color: var(--border) !important;
   color: var(--text-primary) !important;
 }
 
 .validate-btn:hover {
-  background: #334155 !important;
+  background: var(--bg-tertiary) !important;
   border-color: var(--border-light) !important;
 }
 
@@ -1680,6 +1726,10 @@ body {
   align-items: center;
   overflow-y: auto;
   padding: 24px 20px;
+  background: var(--bg-primary);
+}
+
+[data-theme="dark"] .tester-phone {
   background: linear-gradient(180deg, #0c1222, #0f172a);
 }
 
@@ -2625,7 +2675,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 40px 36px 32px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .login-card.shake {
@@ -3294,7 +3344,7 @@ body {
 }
 
 .admin-add-form {
-  background: var(--panel-bg, rgba(255, 255, 255, 0.03));
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px 24px;
@@ -3308,7 +3358,7 @@ body {
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 16px 0;
-  color: var(--text, #e8eaed);
+  color: var(--text-primary);
 }
 
 .admin-form-grid {
@@ -3334,8 +3384,8 @@ body {
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--input-bg, rgba(0, 0, 0, 0.2));
-  color: var(--text, #fff);
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-size: 13px;
 }
 
@@ -3357,7 +3407,7 @@ body {
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--panel-bg, rgba(255, 255, 255, 0.02));
+  background: var(--bg-secondary);
 }
 
 .admin-table {
@@ -3386,7 +3436,7 @@ body {
 }
 
 .admin-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-tertiary);
 }
 
 .admin-role-badge {

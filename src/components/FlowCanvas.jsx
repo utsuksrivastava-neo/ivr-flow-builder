@@ -9,6 +9,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import useFlowStore from '../store/flowStore';
+import useThemeStore from '../store/themeStore';
 import { nodeTypes } from './CustomNodes';
 import { LayoutGrid } from 'lucide-react';
 
@@ -25,6 +26,9 @@ export default function FlowCanvas() {
     applyAutoLayout,
     validationNodeCounts,
   } = useFlowStore();
+
+  const themeMode = useThemeStore((s) => s.mode);
+  const isLight = themeMode === 'light';
 
   const [reactFlowInstance, setReactFlowInstance] = React.useState(null);
 
@@ -78,6 +82,10 @@ export default function FlowCanvas() {
     return { ...n, className: classes.join(' ') };
   });
 
+  const edgeColor = isLight ? '#394FB6' : '#6366f1';
+  const dotColor = isLight ? '#cbd5e1' : '#334155';
+  const minimapMask = isLight ? 'rgba(241, 245, 249, 0.8)' : 'rgba(15, 23, 42, 0.8)';
+
   return (
     <div className="canvas-wrapper" ref={reactFlowWrapper}>
       <ReactFlow
@@ -94,11 +102,11 @@ export default function FlowCanvas() {
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
+        connectionLineStyle={{ stroke: edgeColor, strokeWidth: 2 }}
         defaultEdgeOptions={{
           type: 'smoothstep',
           animated: true,
-          style: { stroke: '#6366f1', strokeWidth: 2 },
+          style: { stroke: edgeColor, strokeWidth: 2 },
         }}
         proOptions={{ hideAttribution: true }}
         snapToGrid
@@ -107,7 +115,7 @@ export default function FlowCanvas() {
         minZoom={0.2}
         maxZoom={2}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#334155" />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color={dotColor} />
         <Controls className="flow-controls" showInteractive={false} />
         <Panel position="bottom-left" className="auto-layout-panel">
           <button
@@ -138,7 +146,7 @@ export default function FlowCanvas() {
             };
             return colorMap[n.type] || '#64748b';
           }}
-          maskColor="rgba(15, 23, 42, 0.8)"
+          maskColor={minimapMask}
           pannable
           zoomable
         />

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import useFlowStore from '../store/flowStore';
+import useThemeStore from '../store/themeStore';
 import { exportToExcel, exportToWord, exportToJSON, importFromJSON } from '../utils/exportUtils';
 import {
   Download,
@@ -21,11 +22,15 @@ import {
   ArrowLeft,
   Undo2,
   Redo2,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates, onSave, onBack }) {
   const projectName = useFlowStore((s) => s.projectName);
   const setProjectName = useFlowStore((s) => s.setProjectName);
+  const themeMode = useThemeStore((s) => s.mode);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const getFlowData = useFlowStore((s) => s.getFlowData);
   const loadFlowData = useFlowStore((s) => s.loadFlowData);
   const clearCanvas = useFlowStore((s) => s.clearCanvas);
@@ -190,6 +195,9 @@ export default function Toolbar({ onSimulate, simulating, onTestIvr, onTemplates
       </div>
 
       <div className="toolbar-right">
+        <button className="toolbar-btn icon-only" onClick={toggleTheme} title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+          {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
         {autoSaveLabel && (
           <span className="autosave-badge" title="Autosave active">{autoSaveLabel}</span>
         )}

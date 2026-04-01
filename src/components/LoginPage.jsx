@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import useAuthStore from '../store/authStore';
+import useThemeStore from '../store/themeStore';
 import { LogIn, Eye, EyeOff, Loader } from 'lucide-react';
 import ExotelLogo, { ExotelXMark } from './ExotelLogo';
 
 export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
+  const themeMode = useThemeStore((s) => s.mode);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -38,7 +40,7 @@ export default function LoginPage() {
           <div className="login-logo-icon">
             <ExotelXMark size={28} />
           </div>
-          <ExotelLogo height={26} light={true} className="login-exotel-wordmark" />
+          <ExotelLogo height={26} light={themeMode === 'dark'} className="login-exotel-wordmark" />
           <h2 className="login-product-name">IVR Flow Builder</h2>
           <p>Build interactive voice response flows visually</p>
         </div>
@@ -95,7 +97,7 @@ export default function LoginPage() {
       </div>
 
       <div className="login-footer">
-        <ExotelLogo height={14} light={true} className="login-footer-logo" />
+        <ExotelLogo height={14} light={themeMode === 'dark'} className="login-footer-logo" />
         <span>Powered by Exotel CPaaS APIs</span>
       </div>
     </div>

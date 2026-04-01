@@ -3,6 +3,7 @@
  */
 import React, { useState, useMemo } from 'react';
 import useAuthStore from '../store/authStore';
+import useThemeStore from '../store/themeStore';
 import ExotelLogo from './ExotelLogo';
 import { ArrowLeft, UserPlus, Trash2, Shield, User } from 'lucide-react';
 
@@ -17,6 +18,7 @@ export default function AdminPage({ onBack }) {
   const addUser = useAuthStore((s) => s.addUser);
   const deleteUser = useAuthStore((s) => s.deleteUser);
   const currentUser = useAuthStore((s) => s.user);
+  const themeMode = useThemeStore((s) => s.mode);
 
   /**
    * Public user rows (no passwords) for the table.
@@ -91,7 +93,7 @@ export default function AdminPage({ onBack }) {
             <ArrowLeft size={14} /> Back to Dashboard
           </button>
           <span className="dash-divider">|</span>
-          <ExotelLogo height={22} light={true} />
+          <ExotelLogo height={22} light={themeMode === 'dark'} />
           <span className="dash-divider">|</span>
           <h1>User Management</h1>
         </div>

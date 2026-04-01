@@ -1,6 +1,7 @@
 import React, { memo, useMemo } from 'react';
 import { Handle, Position } from 'reactflow';
 import useFlowStore from '../store/flowStore';
+import useThemeStore from '../store/themeStore';
 import {
   PhoneOutgoing,
   PhoneIncoming,
@@ -61,32 +62,78 @@ function useStepNumber(nodeId) {
   return map[nodeId] || null;
 }
 
-/** Maps node type keys to theme colors (background, border, accent) for shells and handles. */
-const nodeColors = {
-  startNode: { bg: '#0d3a1a', border: '#4DB961', accent: '#5EC972' },
-  menuNode: { bg: '#1c2a5e', border: '#394FB6', accent: '#6175C5' },
-  playNode: { bg: '#4a1d6a', border: '#a855f7', accent: '#c084fc' },
-  sayNode: { bg: '#6b1d4a', border: '#ec4899', accent: '#f472b6' },
-  voicebotNode: { bg: '#134e5e', border: '#06b6d4', accent: '#22d3ee' },
-  transferNode: { bg: '#5c3310', border: '#f97316', accent: '#fb923c' },
-  recordNode: { bg: '#6b1a1a', border: '#d32f2f', accent: '#ef5350' },
-  hangupNode: { bg: '#374151', border: '#6b7280', accent: '#9ca3af' },
-  gatherNode: { bg: '#5c4b10', border: '#eab308', accent: '#facc15' },
-  conditionNode: { bg: '#3b3470', border: '#8b5cf6', accent: '#a78bfa' },
-  apiCallNode: { bg: '#1a3652', border: '#0ea5e9', accent: '#38bdf8' },
-  // Teal — standalone message display
-  messageNode: { bg: '#1a3a3a', border: '#14b8a6', accent: '#2dd4bf' },
-  // Red — same palette as legacy record
-  startRecordNode: { bg: '#6b1a1a', border: '#d32f2f', accent: '#ef5350' },
-  // Darker red — stop recording action
-  stopRecordNode: { bg: '#4a2020', border: '#b71c1c', accent: '#e57373' },
-  // Sky blue — same as legacy apiCallNode
-  syncApiNode: { bg: '#1a3652', border: '#0ea5e9', accent: '#38bdf8' },
-  // Purple — async / fire-and-forget API
-  asyncApiNode: { bg: '#2d1a52', border: '#8b5cf6', accent: '#a78bfa' },
-  // Amber — voicemail (record caller message)
-  voicemailNode: { bg: '#5c4b10', border: '#f59e0b', accent: '#fbbf24' },
+/** Dark-mode node backgrounds — rich saturated tints. */
+const darkBg = {
+  startNode: '#0d3a1a',
+  menuNode: '#1c2a5e',
+  playNode: '#4a1d6a',
+  sayNode: '#6b1d4a',
+  voicebotNode: '#134e5e',
+  transferNode: '#5c3310',
+  recordNode: '#6b1a1a',
+  hangupNode: '#374151',
+  gatherNode: '#5c4b10',
+  conditionNode: '#3b3470',
+  apiCallNode: '#1a3652',
+  messageNode: '#1a3a3a',
+  startRecordNode: '#6b1a1a',
+  stopRecordNode: '#4a2020',
+  syncApiNode: '#1a3652',
+  asyncApiNode: '#2d1a52',
+  voicemailNode: '#5c4b10',
 };
+
+/** Light-mode node backgrounds — very light tints. */
+const lightBg = {
+  startNode: '#e8f5e9',
+  menuNode: '#e8eaf6',
+  playNode: '#f3e5f5',
+  sayNode: '#fce4ec',
+  voicebotNode: '#e0f7fa',
+  transferNode: '#fff3e0',
+  recordNode: '#ffebee',
+  hangupNode: '#f5f5f5',
+  gatherNode: '#fffde7',
+  conditionNode: '#ede7f6',
+  apiCallNode: '#e1f5fe',
+  messageNode: '#e0f2f1',
+  startRecordNode: '#ffebee',
+  stopRecordNode: '#ffcdd2',
+  syncApiNode: '#e1f5fe',
+  asyncApiNode: '#ede7f6',
+  voicemailNode: '#fffde7',
+};
+
+/** Maps node type keys to theme colors (border, accent). bg comes from theme-specific maps. */
+const nodeColorBase = {
+  startNode: { border: '#4DB961', accent: '#5EC972' },
+  menuNode: { border: '#394FB6', accent: '#6175C5' },
+  playNode: { border: '#a855f7', accent: '#c084fc' },
+  sayNode: { border: '#ec4899', accent: '#f472b6' },
+  voicebotNode: { border: '#06b6d4', accent: '#22d3ee' },
+  transferNode: { border: '#f97316', accent: '#fb923c' },
+  recordNode: { border: '#d32f2f', accent: '#ef5350' },
+  hangupNode: { border: '#6b7280', accent: '#9ca3af' },
+  gatherNode: { border: '#eab308', accent: '#facc15' },
+  conditionNode: { border: '#8b5cf6', accent: '#a78bfa' },
+  apiCallNode: { border: '#0ea5e9', accent: '#38bdf8' },
+  messageNode: { border: '#14b8a6', accent: '#2dd4bf' },
+  startRecordNode: { border: '#d32f2f', accent: '#ef5350' },
+  stopRecordNode: { border: '#b71c1c', accent: '#e57373' },
+  syncApiNode: { border: '#0ea5e9', accent: '#38bdf8' },
+  asyncApiNode: { border: '#8b5cf6', accent: '#a78bfa' },
+  voicemailNode: { border: '#f59e0b', accent: '#fbbf24' },
+};
+
+/** Returns theme-resolved { bg, border, accent } for a given node type. */
+function useNodeColors(type) {
+  const mode = useThemeStore((s) => s.mode);
+  const base = nodeColorBase[type] || { border: '#6b7280', accent: '#9ca3af' };
+  const bg = mode === 'light'
+    ? (lightBg[type] || '#f5f5f5')
+    : (darkBg[type] || '#374151');
+  return { ...base, bg };
+}
 
 /** Lucide icon component per node type (used by NodeShell unless iconOverride is set). */
 const nodeIcons = {
@@ -122,7 +169,7 @@ const nodeIcons = {
  * @param {React.ComponentType<{ size?: number }>} [props.iconOverride]
  */
 function NodeShell({ type, data, selected, children, hasInput = true, outputIds = ['default'], iconOverride, nodeId }) {
-  const colors = nodeColors[type];
+  const colors = useNodeColors(type);
   const Icon = iconOverride || nodeIcons[type];
   const stepNum = useStepNumber(nodeId);
 
@@ -584,4 +631,4 @@ export const nodeTypes = {
   voicemailNode: VoicemailNode,
 };
 
-export { nodeColors, nodeIcons };
+export { nodeColorBase as nodeColors, nodeIcons };

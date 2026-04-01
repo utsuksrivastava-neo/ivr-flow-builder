@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import ExotelLogo from './ExotelLogo';
+import useThemeStore from '../store/themeStore';
 import {
   List,
   Play,
@@ -75,12 +76,13 @@ function onDragStart(event, nodeType) {
 }
 
 export default function Sidebar() {
+  const themeMode = useThemeStore((s) => s.mode);
   return (
     <aside className="sidebar">
       {/* Header with Exotel branding */}
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <ExotelLogo height={18} light={true} />
+          <ExotelLogo height={18} light={themeMode === 'dark'} />
         </div>
         <p className="sidebar-hint">Drag nodes onto the canvas</p>
       </div>

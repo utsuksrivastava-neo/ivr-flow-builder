@@ -10,7 +10,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import useFlowStore from '../store/flowStore';
 import useThemeStore from '../store/themeStore';
-import { nodeTypes } from './CustomNodes';
+import { nodeTypes, StepNumberProvider } from './CustomNodes';
 import { LayoutGrid } from 'lucide-react';
 
 export default function FlowCanvas() {
@@ -88,69 +88,71 @@ export default function FlowCanvas() {
 
   return (
     <div className="canvas-wrapper" ref={reactFlowWrapper}>
-      <ReactFlow
-        nodes={styledNodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onInit={setReactFlowInstance}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        connectionLineStyle={{ stroke: edgeColor, strokeWidth: 2 }}
-        defaultEdgeOptions={{
-          type: 'smoothstep',
-          animated: true,
-          style: { stroke: edgeColor, strokeWidth: 2 },
-        }}
-        proOptions={{ hideAttribution: true }}
-        snapToGrid
-        snapGrid={[16, 16]}
-        deleteKeyCode={['Backspace', 'Delete']}
-        minZoom={0.2}
-        maxZoom={2}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color={dotColor} />
-        <Controls className="flow-controls" showInteractive={false} />
-        <Panel position="bottom-left" className="auto-layout-panel">
-          <button
-            className="auto-layout-btn"
-            onClick={handleAutoLayout}
-            title="Auto-arrange all nodes"
-          >
-            <LayoutGrid size={15} />
-            <span>Auto Layout</span>
-          </button>
-        </Panel>
-        <MiniMap
-          className="flow-minimap"
-          nodeColor={(n) => {
-            const counts = validationNodeCounts[n.id];
-            if (counts?.errors) return '#ef4444';
-            if (counts?.warnings) return '#f59e0b';
-            const colorMap = {
-              startNode: '#10b981',
-              menuNode: '#3b82f6',
-              playNode: '#a855f7',
-              sayNode: '#ec4899',
-              voicebotNode: '#06b6d4',
-              transferNode: '#f97316',
-              recordNode: '#ef4444',
-              hangupNode: '#6b7280',
-              gatherNode: '#eab308',
-            };
-            return colorMap[n.type] || '#64748b';
+      <StepNumberProvider>
+        <ReactFlow
+          nodes={styledNodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onInit={setReactFlowInstance}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          connectionLineStyle={{ stroke: edgeColor, strokeWidth: 2 }}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            animated: true,
+            style: { stroke: edgeColor, strokeWidth: 2 },
           }}
-          maskColor={minimapMask}
-          pannable
-          zoomable
-        />
-      </ReactFlow>
+          proOptions={{ hideAttribution: true }}
+          snapToGrid
+          snapGrid={[16, 16]}
+          deleteKeyCode={['Backspace', 'Delete']}
+          minZoom={0.2}
+          maxZoom={2}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color={dotColor} />
+          <Controls className="flow-controls" showInteractive={false} />
+          <Panel position="bottom-left" className="auto-layout-panel">
+            <button
+              className="auto-layout-btn"
+              onClick={handleAutoLayout}
+              title="Auto-arrange all nodes"
+            >
+              <LayoutGrid size={15} />
+              <span>Auto Layout</span>
+            </button>
+          </Panel>
+          <MiniMap
+            className="flow-minimap"
+            nodeColor={(n) => {
+              const counts = validationNodeCounts[n.id];
+              if (counts?.errors) return '#ef4444';
+              if (counts?.warnings) return '#f59e0b';
+              const colorMap = {
+                startNode: '#10b981',
+                menuNode: '#3b82f6',
+                playNode: '#a855f7',
+                sayNode: '#ec4899',
+                voicebotNode: '#06b6d4',
+                transferNode: '#f97316',
+                recordNode: '#ef4444',
+                hangupNode: '#6b7280',
+                gatherNode: '#eab308',
+              };
+              return colorMap[n.type] || '#64748b';
+            }}
+            maskColor={minimapMask}
+            pannable
+            zoomable
+          />
+        </ReactFlow>
+      </StepNumberProvider>
     </div>
   );
 }

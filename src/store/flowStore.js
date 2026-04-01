@@ -70,12 +70,13 @@ const useFlowStore = create((set, get) => ({
   },
 
   onEdgesChange: (changes) => {
-    pushUndo(get());
+    const isSelect = changes.every((c) => c.type === 'select');
+    if (!isSelect) pushUndo(get());
     set({
       edges: applyEdgeChanges(changes, get().edges),
       canUndo: _undoStack.length > 0,
       canRedo: _redoStack.length > 0,
-      isDirty: true,
+      isDirty: !isSelect ? true : get().isDirty,
     });
   },
 

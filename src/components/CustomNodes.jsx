@@ -1,5 +1,5 @@
-import React, { memo, useMemo } from 'react';
-import { Handle, Position } from 'reactflow';
+import React, { memo, useMemo, createContext, useContext } from 'react';
+import { Handle, Position, useStore as useReactFlowStore } from 'reactflow';
 import useFlowStore from '../store/flowStore';
 import useThemeStore from '../store/themeStore';
 import {
@@ -51,14 +51,28 @@ function computeStepNumbers(nodes, edges) {
 }
 
 /**
- * Hook that returns the BFS step number for a given node ID.
- * @param {string} nodeId
- * @returns {number|null}
+ * Context that provides the BFS step-number map to all nodes at once.
+ * Computed once per render cycle in StepNumberProvider rather than per-node.
  */
-function useStepNumber(nodeId) {
+const StepNumberContext = createContext({});
+
+/**
+ * Provider that computes step numbers once and shares via context.
+ * Wrap around the ReactFlow tree (see FlowCanvas).
+ */
+export function StepNumberProvider({ children }) {
   const nodes = useFlowStore((s) => s.nodes);
   const edges = useFlowStore((s) => s.edges);
   const map = useMemo(() => computeStepNumbers(nodes, edges), [nodes, edges]);
+  return (
+    <StepNumberContext.Provider value={map}>
+      {children}
+    </StepNumberContext.Provider>
+  );
+}
+
+function useStepNumber(nodeId) {
+  const map = useContext(StepNumberContext);
   return map[nodeId] || null;
 }
 

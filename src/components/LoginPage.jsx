@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import useThemeStore from '../store/themeStore';
 import { LogIn, Eye, EyeOff, Loader } from 'lucide-react';
 import ExotelLogo, { ExotelXMark } from './ExotelLogo';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
   const themeMode = useThemeStore((s) => s.mode);
   const [username, setUsername] = useState('');
@@ -25,6 +27,8 @@ export default function LoginPage() {
         setError(result.error || 'Invalid username or password');
         setShake(true);
         setTimeout(() => setShake(false), 600);
+      } else {
+        navigate('/dashboard', { replace: true });
       }
     } catch {
       setError('An unexpected error occurred.');

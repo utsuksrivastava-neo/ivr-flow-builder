@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import useProjectsStore from '../store/projectsStore';
 import useFlowStore from '../store/flowStore';
@@ -39,29 +40,8 @@ function timeAgo(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
-/* Skeleton card shown while projects are loading */
-function SkeletonCard() {
-  return (
-    <div className="dash-card skeleton">
-      <div className="dash-card-top">
-        <div className="skel-block skel-icon" />
-        <div className="skel-block skel-badge" />
-      </div>
-      <div className="skel-block skel-title" />
-      <div className="dash-card-meta">
-        <div className="skel-block skel-meta" />
-        <div className="skel-block skel-meta" />
-      </div>
-      <div className="dash-card-actions">
-        <div className="skel-block skel-btn" />
-        <div className="skel-block skel-btn-sm" />
-        <div className="skel-block skel-btn-sm" />
-      </div>
-    </div>
-  );
-}
-
-export default function Dashboard({ onOpenProject, onAdminPage }) {
+export default function Dashboard() {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const projects = useProjectsStore((s) => s.projects);
@@ -84,13 +64,6 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
   const [filterType, setFilterType] = useState('all');
   const [filterEnv, setFilterEnv] = useState('all');
   const [sortBy, setSortBy] = useState('updated');
-
-  /* Simulate loading for skeleton */
-  const [isLoading, setIsLoading] = useState(true);
-  React.useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 400);
-    return () => clearTimeout(t);
-  }, []);
 
   /* Derived filtered + sorted list */
   const filteredProjects = useMemo(() => {
@@ -133,7 +106,7 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
         nodes: state.nodes,
         edges: state.edges,
       });
-      onOpenProject(id);
+      navigate(`/project/${id}`);
     }
   };
 
@@ -157,12 +130,11 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
     loadFlowData({ projectName: name, nodes: updatedNodes, edges: state.edges });
     const id = createProject({ name, nodes: updatedNodes, edges: state.edges });
     setShowNewDialog(false);
-    onOpenProject(id);
+    navigate(`/project/${id}`);
   };
 
   const handleOpenProject = (project) => {
-    loadFlowData({ projectName: project.name, nodes: project.nodes, edges: project.edges });
-    onOpenProject(project.id);
+    navigate(`/project/${project.id}`);
   };
 
   const handleDelete = (e, id) => {
@@ -220,7 +192,7 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
             {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
           {user?.role === 'admin' && (
-            <button type="button" className="toolbar-btn" onClick={() => onAdminPage?.()}>
+            <button type="button" className="toolbar-btn" onClick={() => navigate('/admin')}>
               <Shield size={14} />
               <span>Admin</span>
             </button>
@@ -286,11 +258,7 @@ export default function Dashboard({ onOpenProject, onAdminPage }) {
           </select>
         </div>
 
-        {isLoading ? (
-          <div className="dash-grid">
-            {[1, 2, 3, 4, 5, 6].map((i) => <SkeletonCard key={i} />)}
-          </div>
-        ) : filteredProjects.length === 0 && projects.length > 0 ? (
+        {filteredProjects.length === 0 && projects.length > 0 ? (
           <div className="dash-empty">
             <Search size={48} className="dash-empty-icon" />
             <h3>No matching projects</h3>

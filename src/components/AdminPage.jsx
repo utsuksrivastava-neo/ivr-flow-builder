@@ -2,6 +2,7 @@
  * @file AdminPage.jsx — administrator UI for listing, adding, and removing local IVR Builder accounts.
  */
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import useThemeStore from '../store/themeStore';
 import ExotelLogo from './ExotelLogo';
@@ -9,11 +10,9 @@ import { ArrowLeft, UserPlus, Trash2, Shield, User } from 'lucide-react';
 
 /**
  * Admin screen: manage local IVR Flow Builder accounts (add / list / delete).
- *
- * @param {object} props
- * @param {() => void} props.onBack - Navigates back to the dashboard
  */
-export default function AdminPage({ onBack }) {
+export default function AdminPage() {
+  const navigate = useNavigate();
   const usersRaw = useAuthStore((s) => s.users);
   const addUser = useAuthStore((s) => s.addUser);
   const deleteUser = useAuthStore((s) => s.deleteUser);
@@ -89,7 +88,7 @@ export default function AdminPage({ onBack }) {
     <div className="dash-page">
       <header className="dash-header">
         <div className="dash-header-left">
-          <button type="button" className="toolbar-btn" onClick={onBack}>
+          <button type="button" className="toolbar-btn" onClick={() => navigate('/dashboard')}>
             <ArrowLeft size={14} /> Back to Dashboard
           </button>
           <span className="dash-divider">|</span>

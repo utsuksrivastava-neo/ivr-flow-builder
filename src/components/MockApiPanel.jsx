@@ -1,10 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import useFlowStore from '../store/flowStore';
 import { generateApiCallsForNode } from '../utils/mockApi';
 import { Terminal, ChevronUp, ChevronDown, Trash2, Play, X } from 'lucide-react';
 
 export default function MockApiPanel({ isOpen, onToggle }) {
-  const { nodes, edges, apiLogs, addApiLog, clearApiLogs, simulationActive, setSimulationActive, addSimulationStep } = useFlowStore();
+  const { nodes, edges, apiLogs, addApiLog, clearApiLogs, simulationActive, setSimulationActive, addSimulationStep } =
+    useFlowStore(
+      useShallow((s) => ({
+        nodes: s.nodes,
+        edges: s.edges,
+        apiLogs: s.apiLogs,
+        addApiLog: s.addApiLog,
+        clearApiLogs: s.clearApiLogs,
+        simulationActive: s.simulationActive,
+        setSimulationActive: s.setSimulationActive,
+        addSimulationStep: s.addSimulationStep,
+      }))
+    );
   const [simStep, setSimStep] = useState(null);
   const [dtmfPrompt, setDtmfPrompt] = useState(null);
   const logEndRef = useRef(null);

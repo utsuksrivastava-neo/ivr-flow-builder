@@ -5,9 +5,9 @@ import ReactFlow, {
   MiniMap,
   Panel,
   BackgroundVariant,
-  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { useShallow } from 'zustand/react/shallow';
 import useFlowStore from '../store/flowStore';
 import useThemeStore from '../store/themeStore';
 import { nodeTypes, StepNumberProvider } from './CustomNodes';
@@ -25,7 +25,21 @@ export default function FlowCanvas() {
     setSelectedNodeId,
     applyAutoLayout,
     validationNodeCounts,
-  } = useFlowStore();
+    simulationPath,
+  } = useFlowStore(
+    useShallow((s) => ({
+      nodes: s.nodes,
+      edges: s.edges,
+      onNodesChange: s.onNodesChange,
+      onEdgesChange: s.onEdgesChange,
+      onConnect: s.onConnect,
+      addNode: s.addNode,
+      setSelectedNodeId: s.setSelectedNodeId,
+      applyAutoLayout: s.applyAutoLayout,
+      validationNodeCounts: s.validationNodeCounts,
+      simulationPath: s.simulationPath,
+    }))
+  );
 
   const themeMode = useThemeStore((s) => s.mode);
   const isLight = themeMode === 'light';
@@ -71,8 +85,6 @@ export default function FlowCanvas() {
     }, 50);
   }, [applyAutoLayout, reactFlowInstance]);
 
-  const simulationPath = useFlowStore((s) => s.simulationPath);
-
   const styledNodes = nodes.map((n) => {
     const classes = [];
     if (simulationPath.includes(n.id)) classes.push('simulation-active');
@@ -101,6 +113,7 @@ export default function FlowCanvas() {
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
+          onlyRenderVisibleElements
           fitView
           fitViewOptions={{ padding: 0.2 }}
           connectionLineStyle={{ stroke: edgeColor, strokeWidth: 2 }}

@@ -1,7 +1,15 @@
 /**
- * @file App.jsx — application shell: login, dashboard, admin, and the flow editor with autosave.
+ * @file App.jsx — HashRouter shell: login, dashboard, admin, per-project editor URLs.
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import {
+  HashRouter,
+  Routes,
+  Route,
+  Navigate,
+  useParams,
+  useNavigate,
+} from 'react-router-dom';
 import { ReactFlowProvider } from 'reactflow';
 import useAuthStore from './store/authStore';
 import useProjectsStore from './store/projectsStore';
@@ -28,7 +36,6 @@ function Editor({ projectId, onBack }) {
   const [testerOpen, setTesterOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const simulationActive = useFlowStore((s) => s.simulationActive);
-  const isDirty = useFlowStore((s) => s.isDirty);
   const updateProject = useProjectsStore((s) => s.updateProject);
   const autosaveRef = useRef(null);
 
@@ -100,63 +107,72 @@ function Editor({ projectId, onBack }) {
   );
 }
 
-export default function App() {
-  const user = useAuthStore((s) => s.user);
-  const [page, setPage] = useState('dashboard');
-  const [currentProjectId, setCurrentProjectId] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  /* Simulated app initialization (hydrate stores) */
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+/**
+ * Loads project flow from the store when the URL is #/project/:projectId
+ */
+function EditorPage() {
+  const { projectId } = useParams();
+  const navigate = useNavigate();
+  const getProject = useProjectsStore((s) => s.getProject);
+  const loadFlowData = useFlowStore((s) => s.loadFlowData);
 
   useEffect(() => {
-    if (page === 'admin' && user?.role !== 'admin') {
-      setPage('dashboard');
+    const p = getProject(projectId);
+    if (!p) {
+      navigate('/dashboard', { replace: true });
+      return;
     }
-  }, [page, user]);
+    loadFlowData({ projectName: p.name, nodes: p.nodes, edges: p.edges });
+  }, [projectId, getProject, loadFlowData, navigate]);
 
-  if (loading) {
-    return (
-      <div className="app-loader">
-        <div className="app-loader-spinner" />
-        <p>Loading Exotel IVR Flow Builder...</p>
-      </div>
-    );
-  }
+  const handleBack = useCallback(() => {
+    const { nodes, edges, projectName } = useFlowStore.getState();
+    if (projectId) {
+      useProjectsStore.getState().updateProject(projectId, { name: projectName, nodes, edges });
+    }
+    navigate('/dashboard');
+  }, [projectId, navigate]);
 
-  if (!user) return <LoginPage />;
+  return <Editor key={projectId} projectId={projectId} onBack={handleBack} />;
+}
 
-  if (page === 'admin' && user.role === 'admin') {
-    return <AdminPage onBack={() => setPage('dashboard')} />;
-  }
-
-  if (page === 'dashboard' || (page === 'admin' && user.role !== 'admin')) {
-    return (
-      <Dashboard
-        onOpenProject={(id) => {
-          setCurrentProjectId(id);
-          setPage('editor');
-        }}
-        onAdminPage={() => setPage('admin')}
-      />
-    );
-  }
+function AppRoutes() {
+  const user = useAuthStore((s) => s.user);
 
   return (
-    <Editor
-      key={currentProjectId}
-      projectId={currentProjectId}
-      onBack={() => {
-        const { nodes, edges, projectName } = useFlowStore.getState();
-        if (currentProjectId) {
-          useProjectsStore.getState().updateProject(currentProjectId, { name: projectName, nodes, edges });
+    <Routes>
+      <Route
+        path="/login"
+        element={!user ? <LoginPage /> : <Navigate to="/dashboard" replace />}
+      />
+      <Route
+        path="/dashboard"
+        element={user ? <Dashboard /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/admin"
+        element={
+          user?.role === 'admin' ? (
+            <AdminPage />
+          ) : (
+            <Navigate to={user ? '/dashboard' : '/login'} replace />
+          )
         }
-        setPage('dashboard');
-        setCurrentProjectId(null);
-      }}
-    />
+      />
+      <Route
+        path="/project/:projectId"
+        element={user ? <EditorPage /> : <Navigate to="/login" replace />}
+      />
+      <Route path="/" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <HashRouter>
+      <AppRoutes />
+    </HashRouter>
   );
 }

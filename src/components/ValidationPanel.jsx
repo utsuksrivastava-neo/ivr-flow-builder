@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import useFlowStore from '../store/flowStore';
 import {
   X,
@@ -16,7 +17,15 @@ export default function ValidationPanel() {
     setValidationVisible,
     setSelectedNodeId,
     runValidation,
-  } = useFlowStore();
+  } = useFlowStore(
+    useShallow((s) => ({
+      validationIssues: s.validationIssues,
+      validationVisible: s.validationVisible,
+      setValidationVisible: s.setValidationVisible,
+      setSelectedNodeId: s.setSelectedNodeId,
+      runValidation: s.runValidation,
+    }))
+  );
 
   if (!validationVisible) return null;
 

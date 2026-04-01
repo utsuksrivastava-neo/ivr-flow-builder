@@ -139,6 +139,9 @@ const nodeColorBase = {
   voicemailNode: { border: '#f59e0b', accent: '#fbbf24' },
 };
 
+/** Alias for internal use — `export { nodeColorBase as nodeColors }` does not create a local `nodeColors` binding. */
+const nodeColors = nodeColorBase;
+
 /** Returns theme-resolved { bg, border, accent } for a given node type. */
 function useNodeColors(type) {
   const mode = useThemeStore((s) => s.mode);
@@ -300,7 +303,7 @@ export const MenuNode = memo(({ id, data, selected }) => {
   const colors = nodeColors.menuNode;
   const options = data.options || [];
   const allOutputs = [
-    ...options.map((o) => o.key),
+    ...options.map((o) => `dtmf-${o.key}`),
     'timeout',
     'invalid',
   ];

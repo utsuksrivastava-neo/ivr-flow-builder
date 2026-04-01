@@ -1,0 +1,40 @@
+%% IVR Flow Builder — interaction map (Mermaid)
+%% https://mermaid.live
+
+flowchart TB
+  ROOT(["/#/"]) --> REDIR{Logged in?}
+  REDIR -->|no| LOGIN["#/login"]
+  REDIR -->|yes| DASH["#/dashboard"]
+
+  LOGIN --> SUBMIT[Submit]
+  SUBMIT --> OK{OK?}
+  OK -->|yes| DASH
+  OK -->|no| LOGIN
+
+  DASH --> PROJ["Open project"]
+  DASH --> NEWIVR["New IVR"]
+  DASH --> TPLD["Template gallery"]
+  DASH --> THEME[Theme]
+  DASH --> OUT[Logout]
+  DASH --> ADM[Admin]
+
+  TPLD --> MAYCREATE{Template changed flow?}
+  MAYCREATE -->|yes| PROJ
+
+  PROJ --> ROUTE["#/project/:projectId"]
+  NEWIVR --> ROUTE
+
+  ROUTE --> TB[Toolbar]
+  ROUTE --> SB[Sidebar]
+  ROUTE --> FC[FlowCanvas]
+  ROUTE --> CP[ConfigPanel]
+  ROUTE --> VP[ValidationPanel]
+  TB --> MOCK[Mock API panel]
+  TB --> IVR[IvrTester modal]
+  TB --> TPL2[Template gallery modal]
+
+  ADM --> USERS["#/admin/users"]
+  ADM --> CONFIG["#/admin/config"]
+
+  ROUTE --> BACK[Back → save if dirty]
+  BACK --> DASH

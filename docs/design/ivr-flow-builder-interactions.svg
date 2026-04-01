@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="720" viewBox="0 0 1100 720">
+  <title>IVR Flow Builder  interaction map</title>
+  <defs>
+    <style type="text/css"><![CDATA[
+      .box { fill: #f8fafc; stroke: #334155; stroke-width: 1.5; rx: 8; }
+      .box-route { fill: #dbeafe; stroke: #2563eb; }
+      .box-dash { fill: #dcfce7; stroke: #16a34a; }
+      .box-admin { fill: #fef9c3; stroke: #ca8a04; }
+      .box-editor { fill: #ede9fe; stroke: #7c3aed; }
+      .box-overlay { fill: #f1f5f9; stroke: #64748b; stroke-dasharray: 6 4; }
+      .t { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px; fill: #0f172a; }
+      .t-sm { font-size: 11px; fill: #475569; }
+      .h { font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .arrow { stroke: #334155; stroke-width: 1.5; fill: none; marker-end: url(#m); }
+      .arrow-d { stroke: #64748b; stroke-dasharray: 5 3; marker-end: url(#md); }
+    ]]></style>
+    <marker id="m" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#334155"/>
+    </marker>
+    <marker id="md" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <text x="40" y="36" class="t h">IVR Flow Builder  interactions (HashRouter)</text>
+  <text x="40" y="56" class="t-sm">Import this SVG into Figma, Penpot, or diagrams.net. Dashed = overlay/modal, not a URL.</text>
+
+  <rect class="box box-route" x="40" y="90" width="180" height="72"/>
+  <text x="50" y="118" class="t">#/login</text>
+  <text x="50" y="138" class="t-sm">LoginPage · submit</text>
+
+  <rect class="box box-dash" x="280" y="90" width="220" height="88"/>
+  <text x="290" y="118" class="t">#/dashboard</text>
+  <text x="290" y="138" class="t-sm">Projects · new IVR · template</text>
+  <text x="290" y="156" class="t-sm">theme · logout · admin (if role)</text>
+
+  <rect class="box box-admin" x="560" y="90" width="240" height="72"/>
+  <text x="570" y="118" class="t">#/admin</text>
+  <text x="570" y="138" class="t-sm">Layout ’ users | config</text>
+
+  <rect class="box box-admin" x="560" y="200" width="110" height="56"/>
+  <text x="570" y="228" class="t-sm">#/admin/users</text>
+
+  <rect class="box box-admin" x="690" y="200" width="110" height="56"/>
+  <text x="700" y="228" class="t-sm">#/admin/config</text>
+
+  <rect class="box box-editor" x="40" y="240" width="300" height="120"/>
+  <text x="50" y="268" class="t">#/project/:projectId</text>
+  <text x="50" y="288" class="t-sm">Toolbar · Sidebar · FlowCanvas</text>
+  <text x="50" y="306" class="t-sm">ConfigPanel · ValidationPanel</text>
+  <text x="50" y="324" class="t-sm">Autosave + save on back/unmount</text>
+
+  <rect class="box box-overlay" x="400" y="250" width="150" height="52"/>
+  <text x="410" y="278" class="t-sm">Mock API panel</text>
+
+  <rect class="box box-overlay" x="400" y="318" width="150" height="48"/>
+  <text x="410" y="346" class="t-sm">IVR Tester modal</text>
+
+  <rect class="box box-overlay" x="580" y="280" width="170" height="52"/>
+  <text x="590" y="308" class="t-sm">Template gallery modal</text>
+
+  <rect class="box" x="820" y="90" width="240" height="100"/>
+  <text x="830" y="118" class="t-sm">Guards</text>
+  <text x="830" y="138" class="t-sm">Guest ’ login; authed /login ’ dash;</text>
+  <text x="830" y="156" class="t-sm">non-admin /admin ’ redirect</text>
+
+  <path class="arrow" d="M 220 126 L 270 126"/>
+  <path class="arrow" d="M 500 134 L 555 134"/>
+  <path class="arrow" d="M 680 162 L 615 200"/>
+  <path class="arrow" d="M 680 162 L 745 200"/>
+  <path class="arrow" d="M 390 180 L 190 240"/>
+  <path class="arrow-d" d="M 340 300 L 395 276"/>
+  <path class="arrow-d" d="M 340 310 L 395 342"/>
+  <path class="arrow-d" d="M 340 300 L 575 306"/>
+</svg>

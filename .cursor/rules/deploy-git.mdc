@@ -1,0 +1,28 @@
+---
+description: After code changes, commit and push to GitHub to deploy (GitHub Pages)
+alwaysApply: true
+---
+
+# Deploy — Git commit and push
+
+This project is deployed via **GitHub Actions** when **`main`** is updated (static site to GitHub Pages).
+
+## Required agent behavior
+
+Whenever you **complete meaningful work** in this repo (features, fixes, tests, dependency or config changes that should ship), **do not stop at local edits only**. Unless the user explicitly says not to:
+
+1. **`git status`** — confirm what changed.
+2. **`git add`** the relevant files (or `-A` when the whole change set should ship).
+3. **`git commit -m "…"`** — one clear, conventional message describing *what* and *why*.
+4. **`git push origin main`** — triggers CI/CD and the live site.
+
+If **push fails** (auth, network), report the error and what was committed locally; do not claim deployment succeeded.
+
+## When to skip push
+
+- User says **not** to commit/push, or only wants a **draft / local** change.
+- Change is **explicitly experimental** and the user asked to keep it uncommitted.
+
+## Repo
+
+Remote is typically **`origin`** on branch **`main`**. Do not force-push or rewrite history unless the user asks.

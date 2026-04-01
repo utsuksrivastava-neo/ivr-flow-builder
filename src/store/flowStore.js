@@ -4,19 +4,23 @@ import { nanoid } from 'nanoid';
 import { autoLayoutNodes } from '../utils/layoutUtils';
 import { validateFlow, getIssueCountsForNodes } from '../utils/validationUtils';
 import { migrateHangupNodeLabels } from '../utils/flowLabelMigrations';
+import { getMergedAppConfig } from './appConfigStore';
 
-const defaultStartNode = {
-  id: 'start-1',
-  type: 'startNode',
-  position: { x: 80, y: 300 },
-  data: {
-    label: 'Inbound + Outbound Call',
-    callDirection: 'both',
-    contactUri: '09163816621',
-    exophone: '08030752400',
-    eventEndpoint: 'grpc://127.0.0.1:9001',
-  },
-};
+function getDefaultStartNode() {
+  const c = getMergedAppConfig();
+  return {
+    id: 'start-1',
+    type: 'startNode',
+    position: { x: 80, y: 300 },
+    data: {
+      label: 'Inbound + Outbound Call',
+      callDirection: 'both',
+      contactUri: c.defaultStartContactUri,
+      exophone: c.defaultStartExophone,
+      eventEndpoint: c.defaultStartEventEndpoint,
+    },
+  };
+}
 
 /* ─── Undo / Redo history ─────────────────────────────────── */
 const MAX_HISTORY = 50;
@@ -42,7 +46,7 @@ function pushUndo(state) {
 let _lastSavedJSON = '';
 
 const useFlowStore = create((set, get) => ({
-  nodes: [defaultStartNode],
+  nodes: [getDefaultStartNode()],
   edges: [],
   selectedNodeId: null,
   projectName: 'My IVR Flow',
@@ -170,7 +174,7 @@ const useFlowStore = create((set, get) => ({
   clearCanvas: () => {
     pushUndo(get());
     set({
-      nodes: [defaultStartNode],
+      nodes: [getDefaultStartNode()],
       edges: [],
       selectedNodeId: null,
       apiLogs: [],
@@ -248,7 +252,7 @@ const useFlowStore = create((set, get) => ({
   loadFlowData: (data) => {
     _undoStack = [];
     _redoStack = [];
-    const rawNodes = data.nodes || [defaultStartNode];
+    const rawNodes = data.nodes || [getDefaultStartNode()];
     const nodes = migrateHangupNodeLabels(rawNodes);
     const edges = data.edges || [];
     _lastSavedJSON = JSON.stringify({ nodes, edges });
@@ -296,14 +300,15 @@ const useFlowStore = create((set, get) => ({
  * @returns {Record<string, unknown>} Default fields merged into `node.data`
  */
 function getNodeDefaults(type) {
+  const c = getMergedAppConfig();
   switch (type) {
     case 'startNode':
       return {
         label: 'Inbound + Outbound Call',
         callDirection: 'both',
-        contactUri: '09163816621',
-        exophone: '08030752400',
-        eventEndpoint: 'grpc://127.0.0.1:9001',
+        contactUri: c.defaultStartContactUri,
+        exophone: c.defaultStartExophone,
+        eventEndpoint: c.defaultStartEventEndpoint,
       };
     case 'menuNode':
       return {
@@ -326,7 +331,7 @@ function getNodeDefaults(type) {
     case 'playNode':
       return {
         label: 'Play Audio',
-        audioUrl: 'https://exotel.s3.mum-1.amazonaws.com/123.wav',
+        audioUrl: c.defaultPlayAudioSampleUrl,
         loop: 1,
         username: '',
         password: '',
@@ -353,15 +358,15 @@ function getNodeDefaults(type) {
       return {
         label: 'Voicebot',
         streamType: 'bidirectional',
-        streamUrl: 'wss://bot.example.com/voice',
+        streamUrl: c.defaultVoicebotStreamUrl,
         greeting: 'Hello! How can I help you today?',
         secureDtmf: false,
       };
     case 'transferNode':
       return {
         label: 'Transfer Call',
-        contactUri: '09163816623',
-        exophone: '08030752400',
+        contactUri: c.defaultTransferContactUri,
+        exophone: c.defaultTransferExophone,
         networkType: 'pstn',
         timeout: 30,
         customParam: '',
@@ -419,7 +424,7 @@ function getNodeDefaults(type) {
         label: 'API Call',
         mode: 'sync',
         method: 'POST',
-        url: 'https://api.example.com/check',
+        url: c.defaultApiCheckUrl,
         headers: '{"Content-Type": "application/json"}',
         body: '{"phone": "{{caller_number}}"}',
         timeout: 10,
@@ -432,7 +437,7 @@ function getNodeDefaults(type) {
       return {
         label: 'Sync API',
         method: 'POST',
-        url: 'https://api.example.com/check',
+        url: c.defaultApiCheckUrl,
         headers: '{"Content-Type": "application/json"}',
         body: '{"phone": "{{caller_number}}"}',
         timeout: 10,
@@ -444,10 +449,10 @@ function getNodeDefaults(type) {
       return {
         label: 'Async API',
         method: 'POST',
-        url: 'https://api.example.com/webhook',
+        url: c.defaultApiWebhookUrl,
         headers: '{"Content-Type": "application/json"}',
         body: '{}',
-        callbackUrl: 'https://your-server.com/callback',
+        callbackUrl: c.defaultApiCallbackUrl,
       };
     /** Voicemail: plays a greeting then records the caller's message (Exotel Voicemail action). */
     case 'voicemailNode':

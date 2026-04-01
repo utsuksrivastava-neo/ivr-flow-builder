@@ -2939,6 +2939,60 @@ body {
   gap: 14px;
 }
 
+.admin-subnav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-nav-link {
+  text-decoration: none;
+}
+
+.admin-config-page {
+  max-width: 960px;
+}
+
+.admin-config-toolbar {
+  margin-bottom: 8px;
+}
+
+.admin-config-lead {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 8px 0 16px;
+  line-height: 1.45;
+}
+
+.admin-config-group {
+  margin-bottom: 28px;
+}
+
+.admin-config-group-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--text-primary);
+}
+
+.admin-config-group-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.admin-config-grid .admin-config-field {
+  grid-column: span 1;
+}
+
+.admin-config-footnote {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 24px;
+}
+
 .dash-user {
   font-size: 13px;
   color: var(--text-secondary);

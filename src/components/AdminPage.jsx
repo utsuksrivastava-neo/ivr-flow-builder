@@ -2,22 +2,17 @@
  * @file AdminPage.jsx — administrator UI for listing, adding, and removing local IVR Builder accounts.
  */
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import useThemeStore from '../store/themeStore';
-import ExotelLogo from './ExotelLogo';
-import { ArrowLeft, UserPlus, Trash2, Shield, User } from 'lucide-react';
+import { UserPlus, Trash2, Shield, User } from 'lucide-react';
 
 /**
  * Admin screen: manage local IVR Flow Builder accounts (add / list / delete).
  */
 export default function AdminPage() {
-  const navigate = useNavigate();
   const usersRaw = useAuthStore((s) => s.users);
   const addUser = useAuthStore((s) => s.addUser);
   const deleteUser = useAuthStore((s) => s.deleteUser);
   const currentUser = useAuthStore((s) => s.user);
-  const themeMode = useThemeStore((s) => s.mode);
 
   /**
    * Public user rows (no passwords) for the table.
@@ -85,20 +80,12 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-left">
-          <button type="button" className="toolbar-btn" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft size={14} /> Back to Dashboard
-          </button>
-          <span className="dash-divider">|</span>
-          <ExotelLogo height={22} light={themeMode === 'dark'} />
-          <span className="dash-divider">|</span>
-          <h1>User Management</h1>
-        </div>
-      </header>
-      <main className="dash-body">
-        {message && (
+    <div className="admin-users-page">
+      <h2 className="admin-section-title">
+        <Shield size={18} />
+        User Management
+      </h2>
+      {message && (
           <div
             className={`admin-flash ${messageKind === 'success' ? 'admin-flash-success' : 'admin-flash-error'}`}
             role="status"
@@ -210,7 +197,6 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
-      </main>
     </div>
   );
 }

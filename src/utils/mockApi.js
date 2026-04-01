@@ -11,6 +11,16 @@
  */
 
 import { nanoid } from 'nanoid';
+import { getMergedAppConfig } from '../store/appConfigStore';
+
+function mockAccountSid() {
+  return getMergedAppConfig().mockAccountSid;
+}
+
+function mockRecordingFileUrl(recSid) {
+  const base = getMergedAppConfig().mockRecordingBaseUrl.replace(/\/?$/, '/');
+  return `${base}${recSid}.mp3`;
+}
 
 /** Generate a SID matching the Exotel pattern (prefix + 30-char id + 00000). */
 function sid(prefix = '') {
@@ -38,15 +48,19 @@ function makeResponse(method, httpCode, data) {
 // POST /v2/accounts/{AccountSID}/legs  –  Create Leg
 // ---------------------------------------------------------------------------
 export function mockCreateLeg({ contactUri, exophone, eventEndpoint, networkType, timeout, timeLimit }) {
+  const cfg = getMergedAppConfig();
+  const cu = contactUri || cfg.mockDefaultContactUri;
+  const ex = exophone || cfg.mockDefaultExophone;
+  const ep = eventEndpoint || cfg.mockDefaultEventEndpoint;
   const legSid = sid('2Q');
   return {
     request: {
       method: 'POST',
       url: '/v2/accounts/{AccountSID}/legs',
       body: {
-        contact_uri: contactUri || '09163816621',
-        exophone: exophone || '08030752400',
-        leg_event_endpoint: eventEndpoint || 'grpc://127.0.0.1:9001',
+        contact_uri: cu,
+        exophone: ex,
+        leg_event_endpoint: ep,
         network_type: networkType || 'pstn',
         timeout: timeout || 30,
         time_limit: timeLimit || 14400,
@@ -55,12 +69,12 @@ export function mockCreateLeg({ contactUri, exophone, eventEndpoint, networkType
     response: makeResponse('POST', 202, {
       leg_sid: legSid,
       created_at: timestamp(),
-      account_sid: 'demo_account',
-      contact_uri: contactUri || '09163816621',
+      account_sid: mockAccountSid(),
+      contact_uri: cu,
       network_type: networkType || 'pstn',
-      exophone: exophone || '08030752400',
+      exophone: ex,
       custom_param: null,
-      leg_event_endpoint: eventEndpoint || 'grpc://127.0.0.1:9001',
+      leg_event_endpoint: ep,
     }),
     events: [
       { event_name: 'leg_connecting', event_type: 'leg_lifecycle_event', delay: 200 },
@@ -88,7 +102,7 @@ export function mockAnswerLeg(legSid) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2A'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'answer_action',
       exoml: '<?xml version="1.0" encoding="UTF-8"?><Flow><Answer></Answer></Flow>',
@@ -118,7 +132,7 @@ export function mockPlayOnLeg(legSid, audioUrl, loop, username, password) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2P'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'play_action',
     }),
@@ -146,7 +160,7 @@ export function mockStopPlay(legSid) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2SP'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'stop_play_action',
     }),
@@ -171,7 +185,7 @@ export function mockSayOnLeg(legSid, message, engine, voice, language, loop) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2S'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'say_action',
     }),
@@ -199,7 +213,7 @@ export function mockStopSay(legSid) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2SS'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'stop_say_action',
     }),
@@ -228,7 +242,7 @@ export function mockGatherOnLeg(legSid, numDigits, timeout, finishOnKey, simulat
     response: makeResponse('POST', 202, {
       action_sid: sid('2G'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'gather_action',
     }),
@@ -297,7 +311,7 @@ export function mockStartStream(legSid, streamType, streamUrl, secureDtmf, sourc
     response: makeResponse('POST', 202, {
       action_sid: sid('2ST'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'stream_action',
     }),
@@ -325,7 +339,7 @@ export function mockStopStream(legSid, streamSid) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2STS'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'stop_stream_action',
     }),
@@ -361,7 +375,7 @@ export function mockDialAction(legSid, contactUri, exophone, networkType, timeou
     response: makeResponse('POST', 202, {
       action_sid: sid('2DA'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'dial_action',
     }),
@@ -406,13 +420,13 @@ export function mockStartRecording(legSid, direction, format, bitrate, channel, 
     response: makeResponse('POST', 202, {
       action_sid: sid('2RA'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'recording_action',
     }),
     events: [
       { event_name: 'recording_started', event_type: 'leg_action_event', delay: 200, event_data: { data: { recording_sid: recSid } } },
-      { event_name: 'recording_available', event_type: 'leg_action_event', delay: 5000, event_data: { data: { status: 'completed', recording_sid: recSid, url: `https://exotel-recordings.s3.amazonaws.com/${recSid}.mp3` } } },
+      { event_name: 'recording_available', event_type: 'leg_action_event', delay: 5000, event_data: { data: { status: 'completed', recording_sid: recSid, url: mockRecordingFileUrl(recSid) } } },
     ],
     recordingSid: recSid,
   };
@@ -436,13 +450,13 @@ export function mockStopRecording(legSid, recordingSid) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2SRA'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'stop_recording_action',
     }),
     events: [
       { event_name: 'recording_stopped', event_type: 'leg_action_event', delay: 200 },
-      { event_name: 'recording_available', event_type: 'leg_action_event', delay: 1000, event_data: { data: { status: 'completed', recording_sid: recSid, url: `https://exotel-recordings.s3.amazonaws.com/${recSid}.mp3` } } },
+      { event_name: 'recording_available', event_type: 'leg_action_event', delay: 1000, event_data: { data: { status: 'completed', recording_sid: recSid, url: mockRecordingFileUrl(recSid) } } },
     ],
   };
 }
@@ -465,14 +479,14 @@ export function mockVoicemail(legSid, message, silenceInSec, finishOnKey, timeou
     response: makeResponse('POST', 202, {
       action_sid: sid('2VMA'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'voicemail_action',
     }),
     events: [
       { event_name: 'recording_started', event_type: 'leg_action_event', delay: 200, event_data: { data: { recording_sid: recSid } } },
       { event_name: 'recording_stopped', event_type: 'leg_action_event', delay: 8000, event_data: { data: { recording_sid: recSid } } },
-      { event_name: 'recording_available', event_type: 'leg_action_event', delay: 10000, event_data: { data: { status: 'completed', recording_sid: recSid, url: `https://exotel-recordings.s3.amazonaws.com/${recSid}.mp3` } } },
+      { event_name: 'recording_available', event_type: 'leg_action_event', delay: 10000, event_data: { data: { status: 'completed', recording_sid: recSid, url: mockRecordingFileUrl(recSid) } } },
     ],
     recordingSid: recSid,
   };
@@ -495,7 +509,7 @@ export function mockHoldLeg(legSid, mohUrl) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2HL'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'hold_action',
     }),
@@ -522,7 +536,7 @@ export function mockUnHoldLeg(legSid) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2UHL'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'unhold_action',
     }),
@@ -547,7 +561,7 @@ export function mockMuteLeg(legSid, direction) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2MU'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'mute_action',
     }),
@@ -572,7 +586,7 @@ export function mockUnMuteLeg(legSid, direction) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2UM'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'unmute_action',
     }),
@@ -599,7 +613,7 @@ export function mockHangupLeg(legSid) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2H'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'hangup_action',
     }),
@@ -624,7 +638,7 @@ export function mockSendDigits(legSid, digits, duration, between) {
     response: makeResponse('POST', 202, {
       action_sid: sid('2SD'),
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sid: legSid,
       action_custom_param: 'send_digits_action',
     }),
@@ -639,22 +653,23 @@ export function mockSendDigits(legSid, digits, duration, between) {
 // ---------------------------------------------------------------------------
 export function mockCreateBridge(legSids, bridgeEventEndpoint, absorbDtmf) {
   const bridgeSid = sid('2B');
+  const ep = bridgeEventEndpoint || getMergedAppConfig().mockDefaultEventEndpoint;
   return {
     request: {
       method: 'POST',
       url: '/v2/accounts/{AccountSID}/bridges',
       body: {
         leg_sids: legSids,
-        bridge_event_endpoint: bridgeEventEndpoint || 'grpc://127.0.0.1:9001',
+        bridge_event_endpoint: ep,
         absorb_dtmf: absorbDtmf || false,
       },
     },
     response: makeResponse('POST', 202, {
       bridge_sid: bridgeSid,
       created_at: timestamp(),
-      account_sid: 'demo_account',
+      account_sid: mockAccountSid(),
       leg_sids: legSids,
-      bridge_event_endpoint: bridgeEventEndpoint || 'grpc://127.0.0.1:9001',
+      bridge_event_endpoint: ep,
     }),
     events: [
       { event_name: 'bridge_created', event_type: 'bridge_lifecycle_event', delay: 200 },

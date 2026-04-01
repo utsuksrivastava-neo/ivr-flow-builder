@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import templates from '../data/templates';
+import { getTemplates } from '../data/templates';
 import useFlowStore from '../store/flowStore';
+import useAppConfigStore from '../store/appConfigStore';
 import {
   X,
   LayoutTemplate,
@@ -20,12 +21,15 @@ const TABS = [
 export default function TemplateGallery({ isOpen, onClose }) {
   const loadFlowData = useFlowStore((s) => s.loadFlowData);
   const setProjectName = useFlowStore((s) => s.setProjectName);
+  const mergedConfig = useAppConfigStore((s) => s.mergedConfig);
   const [tab, setTab] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
 
+  const templates = useMemo(() => getTemplates(mergedConfig), [mergedConfig]);
+
   const filtered = useMemo(
     () => (tab === 'all' ? templates : templates.filter((t) => t.category === tab)),
-    [tab]
+    [tab, templates]
   );
 
   const handleUseTemplate = (tpl) => {

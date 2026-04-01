@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import useFlowStore from '../store/flowStore';
+import useAppConfigStore from '../store/appConfigStore';
 import { nanoid } from 'nanoid';
 import {
   PhoneOutgoing,
@@ -59,6 +60,8 @@ function formatDuration(s) {
 export default function IvrTester({ isOpen, onClose }) {
   const nodes = useFlowStore((s) => s.nodes);
   const edges = useFlowStore((s) => s.edges);
+  const ivrTesterDelayLongMs = useAppConfigStore((s) => s.mergedConfig.ivrTesterDelayLongMs);
+  const ivrTesterDelayShortMs = useAppConfigStore((s) => s.mergedConfig.ivrTesterDelayShortMs);
 
   const [phase, setPhase] = useState('idle');
   const [currentNode, setCurrentNode] = useState(null);
@@ -594,7 +597,7 @@ export default function IvrTester({ isOpen, onClose }) {
             detail: `<StartPlay loop="1">${node.data.audioUrl}</StartPlay>`,
           });
           addStep({ type: 'event', text: 'play_started' });
-          await delay(900);
+          await delay(ivrTesterDelayShortMs);
           if (abortRef.current) return;
           addStep({ type: 'event', text: 'play_completed' });
         }
@@ -715,7 +718,7 @@ export default function IvrTester({ isOpen, onClose }) {
           setFullMessage(`Calling API: ${node.data.method} ${node.data.url}`);
           setTypedText(`Calling API: ${node.data.method} ${node.data.url}`);
           addStep({ type: 'listening', text: `Waiting for response... (timeout: ${node.data.timeout}s)` });
-          await delay(1800);
+          await delay(ivrTesterDelayLongMs);
           if (abortRef.current) return;
           addStep({ type: 'event', text: 'api_response: 200 OK' });
           addStep({ type: 'decision', text: '{"status":"success","data":{"verified":true,"balance":12500}}' });
@@ -841,7 +844,7 @@ export default function IvrTester({ isOpen, onClose }) {
         setFullMessage(`Calling API: ${node.data.method} ${node.data.url}`);
         setTypedText(`Calling API: ${node.data.method} ${node.data.url}`);
         addStep({ type: 'listening', text: `Waiting for response... (timeout: ${node.data.timeout}s)` });
-        await delay(1800);
+        await delay(ivrTesterDelayLongMs);
         if (abortRef.current) return;
         addStep({ type: 'event', text: 'api_response: 200 OK' });
         addStep({ type: 'decision', text: '{"status":"success","data":{"verified":true,"balance":12500}}' });
@@ -976,7 +979,7 @@ export default function IvrTester({ isOpen, onClose }) {
       await delay(700);
       if (abortRef.current) return;
       addStep({ type: 'event', text: 'leg_connecting' });
-      await delay(900);
+      await delay(ivrTesterDelayShortMs);
       if (abortRef.current) return;
       addStep({ type: 'event', text: 'leg_ringing' });
       await delay(1100);

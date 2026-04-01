@@ -3,6 +3,9 @@
  * Each template includes React Flow nodes/edges plus metadata for the template picker.
  * Helper to create edges; optional `handle` sets `sourceHandle` (DTMF, API branches, etc.).
  */
+import { hydrateTemplatesFromRaw } from '../utils/hydrateTemplates';
+import { mergeAppConfig } from '../config/appConfigSchema';
+
 const edge = (source, target, handle) => ({
   id: handle ? `${source}-${handle}-${target}` : `${source}-to-${target}`,
   source,
@@ -490,7 +493,7 @@ const kycTemplate = {
   ],
 };
 
-export const templates = [
+export const rawTemplates = [
   bankingTemplate,
   insuranceTemplate,
   ecommerceTemplate,
@@ -499,5 +502,15 @@ export const templates = [
   feedbackTemplate,
   kycTemplate,
 ];
+
+/**
+ * @param {import('../config/appConfigSchema').DEFAULT_APP_CONFIG} mergedConfig
+ */
+export function getTemplates(mergedConfig) {
+  return hydrateTemplatesFromRaw(rawTemplates, mergedConfig);
+}
+
+/** Default hydrated list (schema defaults); tests and static imports use this. */
+export const templates = getTemplates(mergeAppConfig({}));
 
 export default templates;

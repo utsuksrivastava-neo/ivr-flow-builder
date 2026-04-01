@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import useThemeStore from '../store/themeStore';
+import useAppConfigStore from '../store/appConfigStore';
 import { LogIn, Eye, EyeOff, Loader } from 'lucide-react';
 import ExotelLogo, { ExotelXMark } from './ExotelLogo';
 
@@ -9,6 +10,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
   const themeMode = useThemeStore((s) => s.mode);
+  const loginDemoUsernameHint = useAppConfigStore((s) => s.mergedConfig.loginDemoUsernameHint);
+  const loginDemoPasswordHint = useAppConfigStore((s) => s.mergedConfig.loginDemoPasswordHint);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -92,10 +95,10 @@ export default function LoginPage() {
         <div className="login-hint">
           <div className="login-hint-label">Demo Credentials</div>
           <div className="login-hint-row">
-            <span>Username:</span> <code>demo</code>
+            <span>Username:</span> <code>{loginDemoUsernameHint}</code>
           </div>
           <div className="login-hint-row">
-            <span>Password:</span> <code>demo123</code>
+            <span>Password:</span> <code>{loginDemoPasswordHint}</code>
           </div>
         </div>
       </div>

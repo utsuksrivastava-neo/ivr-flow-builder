@@ -16,7 +16,9 @@ import useProjectsStore from './store/projectsStore';
 import useFlowStore from './store/flowStore';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
+import AdminLayout from './components/AdminLayout';
 import AdminPage from './components/AdminPage';
+import AdminConfigurationsPage from './components/AdminConfigurationsPage';
 import Sidebar from './components/Sidebar';
 import FlowCanvas from './components/FlowCanvas';
 import ConfigPanel from './components/ConfigPanel';
@@ -25,8 +27,7 @@ import MockApiPanel from './components/MockApiPanel';
 import ValidationPanel from './components/ValidationPanel';
 import IvrTester from './components/IvrTester';
 import TemplateGallery from './components/TemplateGallery';
-
-const AUTOSAVE_INTERVAL_MS = 30_000;
+import useAppConfigStore from './store/appConfigStore';
 
 /**
  * Full-screen flow editor with autosave every 30 seconds.
@@ -37,6 +38,7 @@ function Editor({ projectId, onBack }) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const simulationActive = useFlowStore((s) => s.simulationActive);
   const updateProject = useProjectsStore((s) => s.updateProject);
+  const autosaveIntervalMs = useAppConfigStore((s) => s.mergedConfig.autosaveIntervalMs);
   const autosaveRef = useRef(null);
 
   const handleSimulate = useCallback(() => {
@@ -64,9 +66,9 @@ function Editor({ projectId, onBack }) {
         updateProject(projectId, { name: projectName, nodes, edges });
         store.markClean();
       }
-    }, AUTOSAVE_INTERVAL_MS);
+    }, autosaveIntervalMs);
     return () => clearInterval(autosaveRef.current);
-  }, [projectId, updateProject]);
+  }, [projectId, updateProject, autosaveIntervalMs]);
 
   /* Save on unmount (navigate away) */
   useEffect(() => {
@@ -153,12 +155,16 @@ function AppRoutes() {
         path="/admin"
         element={
           user?.role === 'admin' ? (
-            <AdminPage />
+            <AdminLayout />
           ) : (
             <Navigate to={user ? '/dashboard' : '/login'} replace />
           )
         }
-      />
+      >
+        <Route index element={<Navigate to="users" replace />} />
+        <Route path="users" element={<AdminPage />} />
+        <Route path="config" element={<AdminConfigurationsPage />} />
+      </Route>
       <Route
         path="/project/:projectId"
         element={user ? <EditorPage /> : <Navigate to="/login" replace />}
